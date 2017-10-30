@@ -9,7 +9,7 @@ def rpi_get_serial():
             while not l.startswith('Serial'):
                 l = f.readline()
 
-            return l.split(":")[1]
+            return l.split(":")[1][1:-1]
     else:
         print('Not running on a RPi: Using alternative serial')
         return "0012345678"

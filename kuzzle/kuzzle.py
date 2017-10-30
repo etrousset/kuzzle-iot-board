@@ -1,4 +1,8 @@
 import requests
+import json
+import logging
+import coloredlogs
+import sys
 
 
 class KuzzleIOT(object):
@@ -18,6 +22,8 @@ class KuzzleIOT(object):
         }
     }"""
 
+    LOG = logging.getLogger('Kuzzle')
+
     def __init__(self, device_uid, device_type, host='localhost', port='7512',
                  user='', pwd=''):
         self.host = host
@@ -28,16 +34,26 @@ class KuzzleIOT(object):
         self.device_uid = device_uid
         self.device_type = device_type
 
-        pass
+        coloredlogs.install(logger=KuzzleIOT.LOG,
+                            fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            level=logging.DEBUG,
+                            stream=sys.stdout)
+
+    pass
 
     def publish_state(self, state):
         url = "http://{}:{}/{}/{}/_create".format(self.host, self.port, KuzzleIOT.INDEX_IOT,
-                                                  KuzzleIOT.COLLECTION_DEVICE_STATES)
+                                                   KuzzleIOT.COLLECTION_DEVICE_STATES)
         body = {
             "device_id": self.device_uid,
             "device_type": self.device_type,
             "state": state
         }
         req = requests.post(url=url, json=body)
+        json_dec = json.JSONDecoder()
+        res = json_dec.decode(req.text)
 
-        print(req.text)
+        if res['status'] != 200:
+            self.LOG.error("Error publishing device state: status = %d", res['status'])
+            self.LOG.error("\tMessage: %s", res['error']['message'])
+            self.LOG.error("\tStack: \n%s", res['error']['stack'])
