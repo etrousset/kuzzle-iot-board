@@ -6,12 +6,16 @@ import coloredlogs
 import sys
 import argparse
 
+import time
+
 from rpi_get_serial import *
 from pn532 import Pn532
 from kuzzle.kuzzle import KuzzleIOT
 
 GPIO_MOTION_SENSOR = 5
+
 GPIO_BUTTONS = [6, 13, 19, 26]
+GPIO_LED_GREEN = 21
 
 UID = None
 log = logging.getLogger('MAIN')
@@ -38,10 +42,20 @@ def init(args):
 
     pi = pigpio.pi(host=args.pihost)
 
+    if not pi:
+        log.critical("Failed to connect to 'pigpiod': %s", args.pihost)
+        exit(-1)
+
+    pi.set_mode(GPIO_LED_GREEN, pigpio.OUTPUT)
+    pi.write(GPIO_LED_GREEN, 0)
+
     serial_handle = pi.serial_open('/dev/serial0', 115200)
     if not serial_handle:
-        log.critical("Unable to open serial port '/dev/serial0'")
-        exit(-1)
+        time.sleep(5)
+        serial_handle = pi.serial_open('/dev/serial0', 115200)
+        if not serial_handle:
+            log.critical("Unable to open serial port '/dev/serial0'")
+            exit(-1)
 
     pn532 = Pn532(pi, serial_handle, kuzzle_rfid.publish_state)
 
@@ -86,7 +100,6 @@ if __name__ == "__main__":
     parser.add_argument('--kport', metavar="KUZZLE_PORT", default=7512, type=int, help='Kuzzle port, default is 7512')
     parser.add_argument('--kuser', metavar="KUZZLE_USER", help='Kuzzle user')
     parser.add_argument('--kpwd', metavar="KUZZLE_PASSWD", help="Kuzzle user's password")
-
     parser.add_argument('--version', action='version', version='%(prog)s 1.0')
 
     a = parser.parse_args(sys.argv[1:])
@@ -104,6 +117,9 @@ if __name__ == "__main__":
         )
     else:
         log.warning("Unable to connect to Kuzzle...")
+        exit(-1)
+
+    pi.write(GPIO_LED_GREEN, 1)
 
     motion_sensor_install()
     buttons_install()
