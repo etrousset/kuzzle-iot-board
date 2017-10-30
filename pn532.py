@@ -38,7 +38,7 @@ class Pn532(object):
 
         if not self._check_ack(frame):
 
-            self.LOG.error("Didn't get a valid ACK from PN532: %s", hex_dump(frame))
+            self.LOG.error("Didn't get a valid ACK from PN532: %s", self.hex_dump(frame))
         else:
             self.LOG.debug("ACK OK")
 

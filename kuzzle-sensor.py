@@ -13,13 +13,12 @@ from pn532 import Pn532
 from kuzzle.kuzzle import KuzzleIOT
 
 GPIO_MOTION_SENSOR = 5
-
 GPIO_BUTTONS = [6, 13, 19, 26]
 GPIO_LED_GREEN = 21
 
-UID = None
 log = logging.getLogger('MAIN')
 
+UID = None
 kuzzle_rfid = None
 kuzzle_motion = None
 kuzzle_buttons = None
