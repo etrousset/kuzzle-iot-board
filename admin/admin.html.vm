@@ -1,0 +1,9 @@
+<body>
+<H1>Kuzzle multi sensor</H1>
+<H2>Administration page</H2>
+<form action="/setup" method="post">
+    Kuzzle host: <input type="text" name="khost" value="${kuzzle.host}"><br>
+    Kuzzle port: <input type="text" name="kport" value = "${kuzzle.port}"><br>
+    <input type="submit" value="Submit">
+</form>
+</body>

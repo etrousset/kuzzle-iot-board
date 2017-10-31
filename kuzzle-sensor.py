@@ -5,12 +5,14 @@ import logging
 import coloredlogs
 import sys
 import argparse
-
+import ruamel.yaml as YAML
 import time
 
 from rpi_get_serial import *
 from pn532 import Pn532
 from kuzzle.kuzzle import KuzzleIOT
+
+yaml = YAML.YAML()
 
 GPIO_MOTION_SENSOR = 5
 GPIO_BUTTONS = [6, 13, 19, 26]
@@ -26,7 +28,7 @@ pn532 = None
 pi = None
 
 
-def init(args):
+def init(args, config):
     global kuzzle_motion
     global kuzzle_buttons
     global kuzzle_rfid
@@ -34,11 +36,17 @@ def init(args):
     global pi
     global UID
 
-    UID = rpi_get_serial()
-    kuzzle_rfid = KuzzleIOT("NFC_" + UID, "RFID_reader", args.khost, user=args.kuser, pwd=args.kpwd)
-    kuzzle_motion = KuzzleIOT("motion_" + UID, "motion-sensor", args.khost, user=args.kuser, pwd=args.kpwd)
-    kuzzle_buttons = KuzzleIOT("buttons_{}".format(UID), "button", args.khost, user=args.kuser, pwd=args.kpwd)
+    kuzzle_conf = config["kuzzle"]
 
+    UID = rpi_get_serial()
+    log.info('Getting device base UID: %s', UID)
+
+    log.info('Connecting to Kuzzle on %s:%d', kuzzle_conf['host'], kuzzle_conf['port'])
+    kuzzle_rfid = KuzzleIOT("NFC_" + UID, "RFID_reader", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
+    kuzzle_motion = KuzzleIOT("motion_" + UID, "motion-sensor", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
+    kuzzle_buttons = KuzzleIOT("buttons_{}".format(UID), "button", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
+
+    log.info('Connecting to RPi through: %s', args.pihost)
     pi = pigpio.pi(host=args.pihost)
 
     if not pi:
@@ -88,30 +96,33 @@ def buttons_install():
         pi.callback(gpio, pigpio.EITHER_EDGE, on_gpio_changed)
 
 
+def load_config():
+    with open('config.yaml') as f:
+        content = f.read()
+    return yaml.load(content)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Kuzzle IoT - multi sensor demo', prog="kuzzle-iot-demo-multi-device")
 
     parser.add_argument('--pihost',
                         default='localhost',
-                        help='The host pi to witch the pigpio will connect if user in remote')
-    parser.add_argument('--khost', "--kuzzle-host", metavar="KUZZLE_HOST", required=True,
-                        help='Kuzzle host, ip or hostname')
-    parser.add_argument('--kport', metavar="KUZZLE_PORT", default=7512, type=int, help='Kuzzle port, default is 7512')
-    parser.add_argument('--kuser', metavar="KUZZLE_USER", help='Kuzzle user')
-    parser.add_argument('--kpwd', metavar="KUZZLE_PASSWD", help="Kuzzle user's password")
+                        help='The host pi to witch the pigpio will connect if used in remote')
     parser.add_argument('--version', action='version', version='%(prog)s 1.0')
 
-    a = parser.parse_args(sys.argv[1:])
+    cmd_args = parser.parse_args(sys.argv[1:])
 
     logs_init()
-    init(a)
+
+    config = load_config()
+    init(cmd_args, config)
 
     res = kuzzle_motion.server_info()
 
     if res:
         log.debug('Connected to Kuzzle on http://{}:{}, version = {}'.format(
-            a.khost,
-            a.kport,
+            kuzzle_motion.host,
+            kuzzle_motion.port,
             res["serverInfo"]["kuzzle"]["version"])
         )
     else:

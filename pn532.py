@@ -24,7 +24,7 @@ class Pn532(object):
 
         coloredlogs.install(logger=Pn532.LOG,
                             fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                            level=logging.DEBUG,
+                            level=logging.INFO,
                             stream=sys.stdout)
 
     def version_check(self):
@@ -49,7 +49,7 @@ class Pn532(object):
         fw_version = self.parse_firmware_version(frame)
 
         if fw_version:
-            self.LOG.debug('Found PN53 version: %d.%d', fw_version['Ver'], fw_version['Rev'])
+            self.LOG.info('Found PN53 version: %d.%d', fw_version['Ver'], fw_version['Rev'])
         else:
             self.LOG.error('Failed to get version from PN532')
             exit(-1)
@@ -143,7 +143,7 @@ class Pn532(object):
                 Pn532.LOG.debug(self.hex_dump(frame))
                 card = self.parse_card_id(frame)
 
-                self.LOG.info('In field: card ID: 0x%04x', int.from_bytes(card["NFCID"], byteorder='little'))
+                self.LOG.info('Card ID: 0x%04x entering field', int.from_bytes(card["NFCID"], byteorder='little'))
 
                 self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': True})
 
@@ -154,7 +154,7 @@ class Pn532(object):
                     self.LOG.debug('RfConfiguration: %s', self.hex_dump(frame))
                     self.serial_write(frame)
 
-                    time.sleep(0.3)
+                    time.sleep(0.1)
                     l, frame = self.serial_read_ack()
 
                     if self._check_ack(frame):
@@ -170,14 +170,14 @@ class Pn532(object):
                                         bytes(in_list_passive_target_data) + card["NFCID"])
                     self.LOG.debug('InListPassive: %s', self.hex_dump(frame))
                     self.serial_write(frame)
-                    time.sleep(0.3)
+                    time.sleep(0.1)
                     l, frame = self.serial_read_ack()
                     if self._check_ack(frame):
                         self.LOG.debug('InListPassive - ACK OK')
                     else:
                         self.LOG.debug('InListPassive - ACK NOT OK')
 
-                    time.sleep(0.3)
+                    time.sleep(0.1)
                     l, frame = self.serial_read()
                     self.LOG.debug(self.hex_dump(frame))
 
@@ -186,6 +186,7 @@ class Pn532(object):
 
                     if not in_field:
                         self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': False})
+                        self.LOG.info('Card ID: 0x%04x leaving field', int.from_bytes(card["NFCID"], byteorder='little'))
 
                         frame = self._frame(self.CMD_IN_AUTO_POLL, bytes(polling_data))
                         self.serial_write(frame)
