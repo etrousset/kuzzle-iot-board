@@ -46,15 +46,19 @@ class KuzzleIOT(object):
         """
 
         url = "http://{}:{}/_serverInfo".format(self.host, self.port)
-        req = requests.get(url=url)
-        res = self.JSON_DEC.decode(req.text)
-        # json.dump(res, sys.stdout, indent=2)
-        if res["status"] == 200:
-            return res["result"]
-        else:
-            self.LOG.critical('Unable to connect to Kuzzle: http://%s:%s', a.khost, a.kport)
-            self.LOG.error(res["error"]["message"])
-            self.LOG.error(res["error"]["stack"])
+        try:
+            req = requests.get(url=url)
+            res = self.JSON_DEC.decode(req.text)
+            # json.dump(res, sys.stdout, indent=2)
+            if res["status"] == 200:
+                return res["result"]
+            else:
+                self.LOG.critical('Unable to connect to Kuzzle: http://%s:%s', self.host, self.port)
+                self.LOG.error(res["error"]["message"])
+                self.LOG.error(res["error"]["stack"])
+                return None
+        except Exception as e:
+            self.LOG.critical('Unable to connect to Kuzzle: http://%s:%s', self.host, self.port)
             return None
 
     def publish_state(self, state):

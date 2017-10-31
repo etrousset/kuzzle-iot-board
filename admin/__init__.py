@@ -4,24 +4,10 @@ import urllib.parse as uparse
 import airspeed
 from ruamel.yaml import YAML
 
-yaml = YAML()
-
-
-def apply_config(args):
-    if 'kport' in args.keys():
-        config['kuzzle']['port'] = args['kport']
-    if 'khost' in args.keys():
-        config['kuzzle']['host'] = args['khost']
-
-    print(config)
-
 
 class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
     def do_POST(self):
-        print('Received a post, path = ', self.path)
-
         if self.path == '/setup':
-            print(self.headers)
             content_length = int(self.headers['Content-Length'])
             c = self.rfile.read(content_length)
             args = uparse.parse_qsl(c)
@@ -44,31 +30,53 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
 
             self.wfile.write(bytes(body, 'utf-8'))
 
+        elif self.path == "/":
+            self.send_response(301)
+            self.send_header("Location", "http://" + self.headers["Host"] + '/admin')
+            self.end_headers()
         else:
             super().do_GET()
 
 
-def run():
-    server_address = ('', 8083)
-    httpd = HTTPServer(server_address, AdminHTTPRequestHandler)
+yaml = YAML()
+config_update_event = None
+server_address = ('', 8083)
+httpd = HTTPServer(server_address, AdminHTTPRequestHandler)
+
+
+def apply_config(args):
+    if 'kport' in args.keys():
+        config['kuzzle']['port'] = args['kport']
+    if 'khost' in args.keys():
+        config['kuzzle']['host'] = args['khost']
+
+    with open('config.yaml', mode='w') as f:
+        yaml.dump(config, f)
+
+    config_update_event.set()
+
+
+def start_admin_server(conf_update_event):
+    global config_update_event
+    config_update_event = conf_update_event
     httpd.serve_forever()
 
 
+def shutdown_admin_server():
+    httpd.shutdown()
+
+
 def load_admin_template():
-    content = None
-    with open('admin.html.vm') as f:
+    with open('admin/admin.html.vm') as f:
         content = f.read()
     return airspeed.Template(content)
 
 
 def load_config():
-    with open(u"../config.yaml") as f:
+    with open(u"config.yaml") as f:
         config_str = f.read()
-
     return yaml.load(config_str)
 
 
-yaml = YAML()
 config = load_config()
 admin_template = load_admin_template()
-run()

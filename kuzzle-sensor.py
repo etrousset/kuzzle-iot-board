@@ -7,10 +7,13 @@ import sys
 import argparse
 import ruamel.yaml as YAML
 import time
+import threading
 
 from rpi_get_serial import *
 from pn532 import Pn532
 from kuzzle.kuzzle import KuzzleIOT
+
+from admin import start_admin_server, shutdown_admin_server
 
 yaml = YAML.YAML()
 
@@ -26,6 +29,7 @@ kuzzle_motion = None
 kuzzle_buttons = None
 pn532 = None
 pi = None
+config_update_event = threading.Event()
 
 
 def init(args, config):
@@ -41,7 +45,7 @@ def init(args, config):
     UID = rpi_get_serial()
     log.info('Getting device base UID: %s', UID)
 
-    log.info('Connecting to Kuzzle on %s:%d', kuzzle_conf['host'], kuzzle_conf['port'])
+    log.info('Connecting to Kuzzle on {}:{}'.format(kuzzle_conf['host'], kuzzle_conf['port']))
     kuzzle_rfid = KuzzleIOT("NFC_" + UID, "RFID_reader", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
     kuzzle_motion = KuzzleIOT("motion_" + UID, "motion-sensor", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
     kuzzle_buttons = KuzzleIOT("buttons_{}".format(UID), "button", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
@@ -58,7 +62,7 @@ def init(args, config):
 
     serial_handle = pi.serial_open('/dev/serial0', 115200)
     if not serial_handle:
-        time.sleep(5)
+        time.sleep(1)
         serial_handle = pi.serial_open('/dev/serial0', 115200)
         if not serial_handle:
             log.critical("Unable to open serial port '/dev/serial0'")
@@ -102,6 +106,17 @@ def load_config():
     return yaml.load(content)
 
 
+def cleanup():
+    log.info('Shutting down http admin server')
+    shutdown_admin_server()
+    log.debug('[DONE] Shutting down http admin server')
+
+    if pi and pn532 and pn532.serial_handle:
+        pi.serial_close(pn532.serial_handle)
+    if pi:
+        pi.write(GPIO_LED_GREEN, 0)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Kuzzle IoT - multi sensor demo', prog="kuzzle-iot-demo-multi-device")
 
@@ -125,13 +140,27 @@ if __name__ == "__main__":
             kuzzle_motion.port,
             res["serverInfo"]["kuzzle"]["version"])
         )
+        pi.write(GPIO_LED_GREEN, 1)
+        motion_sensor_install()
+        buttons_install()
+        pn532.version_check()
+        pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
+        pn532_thread.daemon = True
+        pn532_thread.start()
     else:
         log.warning("Unable to connect to Kuzzle...")
-        exit(-1)
 
-    pi.write(GPIO_LED_GREEN, 1)
+    admin_server_thread = threading.Thread(target=start_admin_server, name="admin-server", args=(config_update_event,))
+    admin_server_thread.start()
 
-    motion_sensor_install()
-    buttons_install()
-    pn532.version_check()
-    pn532.start_polling()
+    try:
+        while 1:
+            config_update_event.wait()
+            log.info("Configuration changed, restarting firmware...")
+            cleanup()
+            os.execv(__file__, sys.argv)
+
+    except KeyboardInterrupt as e:
+        pass
+    finally:
+        cleanup()
