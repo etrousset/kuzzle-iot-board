@@ -13,8 +13,6 @@ from rpi_get_serial import *
 from pn532 import Pn532
 from kuzzle.kuzzle import KuzzleIOT
 
-from admin import start_admin_server, shutdown_admin_server
-
 yaml = YAML.YAML()
 
 GPIO_MOTION_SENSOR = 5
@@ -29,7 +27,6 @@ kuzzle_motion = None
 kuzzle_buttons = None
 pn532 = None
 pi = None
-config_update_event = threading.Event()
 
 
 def init(args, config):
@@ -107,27 +104,17 @@ def load_config():
 
 
 def cleanup():
-    log.info('Shutting down http admin server')
-    shutdown_admin_server()
-    log.debug('[DONE] Shutting down http admin server')
-
     if pi and pn532 and pn532.serial_handle:
         pi.serial_close(pn532.serial_handle)
     if pi:
         pi.write(GPIO_LED_GREEN, 0)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Kuzzle IoT - multi sensor demo', prog="kuzzle-iot-demo-multi-device")
-
-    parser.add_argument('--pihost',
-                        default='localhost',
-                        help='The host pi to witch the pigpio will connect if used in remote')
-    parser.add_argument('--version', action='version', version='%(prog)s 1.0')
-
-    cmd_args = parser.parse_args(sys.argv[1:])
-
+def startup(args):
     logs_init()
+
+    config_update_event = args['update_evt']
+    cmd_args = args['cmd_line']
 
     config = load_config()
     init(cmd_args, config)
@@ -143,24 +130,16 @@ if __name__ == "__main__":
         pi.write(GPIO_LED_GREEN, 1)
         motion_sensor_install()
         buttons_install()
-        pn532.version_check()
-        pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
-        pn532_thread.daemon = True
-        pn532_thread.start()
+        if pn532.version_check():
+            log.info('Found a Pn532 RFID/NFC module, starting card polling...')
+            pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
+            pn532_thread.daemon = True
+            pn532_thread.start()
     else:
         log.warning("Unable to connect to Kuzzle...")
 
-    admin_server_thread = threading.Thread(target=start_admin_server, name="admin-server", args=(config_update_event,))
-    admin_server_thread.start()
+    config_update_event.wait()
+    log.info("Configuration changed, restarting firmware...")
+    config_update_event.clear()
 
-    try:
-        while 1:
-            config_update_event.wait()
-            log.info("Configuration changed, restarting firmware...")
-            cleanup()
-            os.execv(__file__, sys.argv)
-
-    except KeyboardInterrupt as e:
-        pass
-    finally:
-        cleanup()
+    cleanup()

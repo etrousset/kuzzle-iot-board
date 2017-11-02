@@ -33,14 +33,13 @@ class Pn532(object):
 
         self.LOG.debug("Get PN532 firmware revision: GetFirmwareVersion")
         self.pi.serial_write(self.serial_handle, self._frame(Pn532.CMD_GET_FIRMWARE_VERSION))
-        time.sleep(0.3)
+        time.sleep(0.5)
         l, frame = self.serial_read_ack()
 
         if not self._check_ack(frame):
-
-            self.LOG.error("Didn't get a valid ACK from PN532: %s", self.hex_dump(frame))
+            self.LOG.error("GetFirmwareVersion: ACK NOT OK")
         else:
-            self.LOG.debug("ACK OK")
+            self.LOG.debug("GetFirmwareVersion: ACK OK")
 
         time.sleep(0.3)
         l, frame = self.serial_read()
@@ -52,7 +51,10 @@ class Pn532(object):
             self.LOG.info('Found PN53 version: %d.%d', fw_version['Ver'], fw_version['Rev'])
         else:
             self.LOG.error('Failed to get version from PN532')
-            exit(-1)
+
+        return fw_version
+
+
 
     @staticmethod
     def hex_dump(b, sep=' '):
@@ -85,14 +87,14 @@ class Pn532(object):
 
     @staticmethod
     def parse_firmware_version(frame):
-        if bytes(frame[:6]) == b"\x00\x00\xff\x06\xfa\xd5":
+        if frame and bytes(frame[:6]) == b"\x00\x00\xff\x06\xfa\xd5":
             IC = frame[7]
             ver = frame[8]
             rev = frame[9]
             support = frame[10]
             return {'IC': IC, 'Ver': ver, 'Rev': rev, 'Support': support}
         else:
-            Pn532.LOG.critical("Invalide firmware version frame: %s", frame)
+            Pn532.LOG.critical("Invalid firmware version frame: %s", frame)
             return None
 
     @staticmethod
