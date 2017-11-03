@@ -23,6 +23,7 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-type", "text/html")
 
+            admin_template = load_admin_template()
             body = admin_template.merge(config)
 
             self.send_header("Content-length", len(body))
