@@ -1,0 +1,255 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>Kuzzle MSensor</title>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="../www/css/bootstrap.min.css" crossorigin="anonymous">
+  <script src="../www/js/jquery-3.2.1.min.js"></script>
+  <script>
+    $(function() {
+      console.log("hello");
+      $('#navbar').load("navbar.html", () => document.getElementById('menu_dashboard').className ="item nav-link active")
+    })
+  </script>
+</head>
+
+<body onload="kuzzle_init()">
+  <div id="navbar"></div>
+
+  <div class="container">
+    <div class="row">
+      <div class="col-sm mt-4">
+        <div class="card" style="width: 15rem;">
+          <div class="card-header">
+            RFID Card Reader
+          </div>
+          <div class="card-body">
+            <div class="card-text" id='rfid_content'>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm  mt-4">
+        <div class="card" style="width: 15rem;">
+          <div class="card-header">
+            Buttons
+          </div>
+          <div class="card-body">
+            <div class="card-text" id='buttons_content'>
+              <div class="">
+                <div class="badge badge-secondary" id="button_0">Btn O</div>
+                <div class="badge badge-secondary" id="button_1">Btn 1</div>
+                <div class="badge badge-secondary" id="button_2">Btn 2</div>
+                <div class="badge badge-secondary" id="button_3">Btn 3</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm  mt-4">
+        <div class="card" style="width: 15rem;">
+          <div class="card-header">
+            Motion sensor
+          </div>
+          <div class="card-body">
+            <div class="card-text">
+              <div class="badge badge-secondary" id='motion_content'>Motion</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm  mt-4">
+        <div class="card" style="width: 15rem;">
+          <div class="card-header">
+            Light sensor
+          </div>
+          <div class="card-body">
+            <div class="card-text" id='light_content'>
+              Light level: Lux
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../www/js/jquery-3.2.1.min.js"></script>
+  <script src="../www/js/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+  <script src="../www/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+  <script src="../www/js/bluebird.min.js"></script>
+  <script src="../www/js/kuzzle.js"></script>
+  <script src="../www/js/js-yaml.min.js"></script>
+  <style>
+    .alert {
+      margin-bottom: 3px;
+      height: 30px;
+      line-height: 30px;
+      padding: 0px 15px;
+    }
+
+    .img-success {
+      content: url(./www/icons/glyphicons-199-ok-circle-white.png);
+    }
+
+    .img-danger {
+      content: url(./www/icons/glyphicons-198-remove-circle.png);
+    }
+
+    .img-small {
+      width: 15px;
+      height: 15px;
+    }
+  </style>
+  <script type="text/javascript">
+    function subscribe_to_rfid() {
+      console.log("Subscribing to RFID card events");
+      device_state_col.subscribe({
+            equals: {
+              device_id: "NFC_00000000c9591b74"
+            }
+          }, {
+            subscribeToSelf: false
+          },
+          (err, res) => {
+            var state = res.document.content.state
+            if (state.in_field) {
+              console.log('Card detected in sensor field: ', state.card_id)
+              card_div = document.getElementById('rfid_content_' + state.card_id)
+              if (card_div) {
+                card_div.className = 'badge badge-primary'
+              } else {
+                document.getElementById('rfid_content').innerHTML += `<div class="badge badge-primary" id="rfid_content_${state.card_id}">${state.card_id}</div></br>`
+              }
+            } else {
+              console.log('Card left sensor field: ', state.card_id)
+              card_div = document.getElementById('rfid_content_' + state.card_id)
+              card_div.className = "badge badge-secondary"
+            }
+          })
+        .onDone((a) => {
+          console.log("[DONE] Subscribing to RFID card events");
+        })
+
+    }
+
+    function subscribe_to_buttons() {
+      console.log("Subscribing to button events");
+      device_state_col.subscribe({
+            equals: {
+              device_id: 'buttons_00000000c9591b74'
+            }
+          }, {
+            subscribeToSelf: false
+          },
+          (err, res) => {
+            var state = res.document.content.state
+            console.log('button states: ', state)
+
+            button_0_div = document.getElementById('button_0')
+            if (state.button_0 === "PRESSED") {
+              button_0_div.className = "badge badge-primary"
+            } else {
+              button_0_div.className = "badge badge-secondary"
+            }
+
+            button_1_div = document.getElementById('button_1')
+            if (state.button_1 === "PRESSED") {
+              button_1_div.className = "badge badge-primary"
+            } else {
+              button_1_div.className = "badge badge-secondary"
+            }
+
+            button_2_div = document.getElementById('button_2')
+            if (state.button_2 === "PRESSED") {
+              button_2_div.className = "badge badge-primary"
+            } else {
+              button_2_div.className = "badge badge-secondary"
+            }
+
+
+            button_3_div = document.getElementById('button_3')
+            if (state.button_3 === "PRESSED") {
+              button_3_div.className = "badge badge-primary"
+            } else {
+              button_3_div.className = "badge badge-secondary"
+            }
+          })
+        .onDone((a) => {
+          console.log("[DONE] Subscribing to button events");
+        })
+    }
+
+    function subscribe_to_motion_sensor() {
+      console.log("Subscribing to motion sensor events");
+      device_state_col.subscribe({
+            equals: {
+              device_id: 'motion_00000000c9591b74'
+            }
+          }, {
+            subscribeToSelf: false
+          },
+          (err, res) => {
+            var state = res.document.content.state
+            console.log('motion sensor states: ', state)
+
+            if (state.motion)
+              document.getElementById('motion_content').className = "badge badge-primary"
+            else
+              document.getElementById('motion_content').className = "badge badge-secondary"
+          })
+        .onDone((a) => {
+          console.log("[DONE] Subscribing to motion sensor events");
+        })
+    }
+
+    function subscribe_to_light_sensor() {
+
+    }
+
+    function kuzzle_init() {
+      console.log('kuzzle_init');
+
+      var configP = new Promise((resolve, reject) => {
+        // YAML file to Javascript object
+        $.get('../config.yaml', function(text) {
+          var config = jsyaml.load(text);
+          console.log(config);
+          resolve(config)
+        })
+      })
+
+      configP.then((config) => {
+        kuzzlehost = config.kuzzle.host
+        kuzzleport = config.kuzzle.port
+        console.log("Connecting to kuzzle: ", kuzzlehost, ":", kuzzleport);
+
+        kuzzle = new Kuzzle(kuzzlehost, {
+            port: kuzzleport,
+            autoReconnect: false
+          },
+          (err, res) => {
+            if (err) {
+              console.log('Kuzzle connection error:', err)
+            } else {
+              console.log("Connected to Kuzzle: ", kuzzlehost, ":", kuzzleport);
+              kuzzle.setDefaultIndex('iot');
+              device_state_col = kuzzle.collection("device-state")
+              subscribe_to_rfid()
+              subscribe_to_buttons()
+              subscribe_to_motion_sensor()
+              subscribe_to_light_sensor()
+            }
+          })
+        //kuzzle.connect()
+      })
+    }
+  </script>
+
+</body>
+
+</html>

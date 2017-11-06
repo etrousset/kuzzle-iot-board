@@ -9,22 +9,19 @@
 
   <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="www/css/bootstrap.min.css" crossorigin="anonymous">
+  <script src="www/js/jquery-3.2.1.min.js"></script>
+  <script>
+    $(function() {
+      console.log("hello");
+      $('#navbar').load("admin/navbar.html", () => document.getElementById('menu_admin').className ="item nav-link active")
+    })
+  </script>
 </head>
 
 <body class="justify-content-center">
-  <div class="myglyph"aabcdefghijklemnoefdsl</div>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <a class="navbar-brand" href="#">Kuzzle Multi Sensor</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-    <span class="navbar-toggler-icon"></span>
-  </button>
-    <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-      <div class="navbar-nav">
-        <a class="nav-item nav-link active" href="#">Admin<span class="sr-only">(current)</span></a>
-        <a class="nav-item nav-link" href="#">Tools</a>
-      </div>
-    </div>
-  </nav>
+
+  <div id="navbar"></div>
+
 
   <div class="container">
     <br>
@@ -60,7 +57,7 @@
         <div class="card-text" id='testresult'>
           Press <strong>Check</strong> button to start validation
         </div>
-      </br>
+        </br>
         <button type="button" onclick="kuzzleSanityCheck()" class="btn btn-primary btn-sm float-right">Check</button>
         </form>
       </div>
@@ -80,32 +77,33 @@
       </div>
     </div>
     </br>
-  </hr>
+    </hr>
     <div></div>
   </div>
-  <script src="www/js/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
   <script src="www/js/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
   <script src="www/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
   <script src="www/js/bluebird.min.js"></script>
   <script src="www/js/kuzzle.js"></script>
   <style>
-  .alert {
-  margin-bottom: 3px;
-  height: 30px;
-  line-height:30px;
-  padding:0px 15px;
-}
-.img-success {
-content:url(./www/icons/glyphicons-199-ok-circle-white.png);
-}
-.img-danger {
-content:url(./www/icons/glyphicons-198-remove-circle.png);
-}
+    .alert {
+      margin-bottom: 3px;
+      height: 30px;
+      line-height: 30px;
+      padding: 0px 15px;
+    }
 
-.img-small {
-  width: 15px;
-  height: 15px;
-}
+    .img-success {
+      content: url(./www/icons/glyphicons-199-ok-circle-white.png);
+    }
+
+    .img-danger {
+      content: url(./www/icons/glyphicons-198-remove-circle.png);
+    }
+
+    .img-small {
+      width: 15px;
+      height: 15px;
+    }
   </style>
   <script type="text/javascript">
     function kuzzleSanityCheck() {
@@ -176,7 +174,8 @@ content:url(./www/icons/glyphicons-198-remove-circle.png);
                 })
               })
               .catch(err => {
-                testresult.innerHTML += `<div class="alert alert-danger" role="alert">Failled to retreive 'iot' collections <span class="badge badge-danger float-right mt-1">Failled</span>
+                testresult.innerHTML +=
+                  `<div class="alert alert-danger" role="alert">Failled to retreive 'iot' collections <span class="badge badge-danger float-right mt-1">Failled</span>
                 <hr>
                 ${err}
                 </div>`

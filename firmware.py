@@ -28,6 +28,13 @@ kuzzle_buttons = None
 pn532 = None
 pi = None
 
+buttons = {
+    "button_0": "RELEASED",
+    "button_1": "RELEASED",
+    "button_2": "RELEASED",
+    "button_3": "RELEASED",
+}
+
 
 def init(args, config):
     global kuzzle_motion
@@ -75,8 +82,9 @@ def logs_init():
 
 def on_gpio_changed(gpio, level, tick):
     if gpio in GPIO_BUTTONS:
-        log.debug('Button %d is %s', GPIO_BUTTONS.index(gpio), 'PRESSED' if level else 'RELEASED')
-        kuzzle_buttons.publish_state({'button_{}'.format(GPIO_BUTTONS.index(gpio)): 'PRESSED' if level else 'RELEASED'})
+        buttons['button_{}'.format(GPIO_BUTTONS.index(gpio))] = 'PRESSED' if level else 'RELEASED'
+        log.debug('Buttons state: %s', buttons)
+        kuzzle_buttons.publish_state(buttons)
     elif gpio == GPIO_MOTION_SENSOR:
         log.debug('Motion: %s', 'True' if level else 'False')
         kuzzle_motion.publish_state({'motion': True if level else False})
@@ -93,7 +101,7 @@ def buttons_install():
     for gpio in GPIO_BUTTONS:
         pi.set_mode(gpio, pigpio.INPUT)
         pi.set_pull_up_down(gpio, pigpio.PUD_UP)
-        pi.set_noise_filter(gpio, 300000, 300)
+        pi.set_noise_filter(gpio, 30000, 300)
         pi.callback(gpio, pigpio.EITHER_EDGE, on_gpio_changed)
 
 
