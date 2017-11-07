@@ -25,6 +25,7 @@ UID = None
 kuzzle_rfid = None
 kuzzle_motion = None
 kuzzle_buttons = None
+kuzzle_light = None
 pn532 = None
 pi = None
 
@@ -40,6 +41,7 @@ def init(args, config):
     global kuzzle_motion
     global kuzzle_buttons
     global kuzzle_rfid
+    global kuzzle_light
     global pn532
     global pi
     global UID
@@ -53,6 +55,8 @@ def init(args, config):
     kuzzle_rfid = KuzzleIOT("NFC_" + UID, "RFID_reader", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
     kuzzle_motion = KuzzleIOT("motion_" + UID, "motion-sensor", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
     kuzzle_buttons = KuzzleIOT("buttons_{}".format(UID), "button", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
+    kuzzle_light = KuzzleIOT("light_lvl_{}".format(UID), "light_sensor", host=kuzzle_conf['host'],
+                             port=kuzzle_conf['port'])
 
     log.info('Connecting to RPi through: %s', args.pihost)
     pi = pigpio.pi(host=args.pihost)
@@ -118,6 +122,20 @@ def cleanup():
         pi.write(GPIO_LED_GREEN, 0)
 
 
+def start_sensing_light():
+    log.info("Starting light level sensing thread")
+    import tept5700
+
+    tept = tept5700.Tept5700(5.2, 10000)
+    try:
+        while 1:
+            voltage, lux = tept.read_lux()
+            kuzzle_light.publish_state({"level": "{:.3f}".format(lux)})
+            time.sleep(1)
+    except KeyboardInterrupt as e:
+        pass
+
+
 def startup(args):
     logs_init()
 
@@ -143,6 +161,10 @@ def startup(args):
             pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
             pn532_thread.daemon = True
             pn532_thread.start()
+
+        light_sensor_thread = threading.Thread(target=start_sensing_light, name="light_sensor")
+        light_sensor_thread.daemon = True
+        light_sensor_thread.start()
     else:
         log.warning("Unable to connect to Kuzzle...")
 

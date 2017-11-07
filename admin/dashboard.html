@@ -69,8 +69,8 @@
             Light sensor
           </div>
           <div class="card-body">
-            <div class="card-text" id='light_content'>
-              Light level: Lux
+            <div class="card-text" id='light_level'>
+              Light level almost in Lux
             </div>
           </div>
         </div>
@@ -208,7 +208,22 @@
     }
 
     function subscribe_to_light_sensor() {
-
+      console.log("Subscribing to light level sensor events");
+      device_state_col.subscribe({
+            equals: {
+              device_id: 'light_lvl_00000000c9591b74'
+            }
+          }, {
+            subscribeToSelf: false
+          },
+          (err, res) => {
+            var state = res.document.content.state
+            console.log('light level sensor state: ', state)
+            document.getElementById('light_level').innerHTML = `<h3>${state.level}lux</h3>`
+          })
+        .onDone((a) => {
+          console.log("[DONE] Subscribing to light level sensor events");
+        })
     }
 
     function kuzzle_init() {
