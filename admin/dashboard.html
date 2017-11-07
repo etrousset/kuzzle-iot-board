@@ -16,6 +16,30 @@
       $('#navbar').load("navbar.html", () => document.getElementById('menu_dashboard').className ="item nav-link active")
     })
   </script>
+
+  <script type="text/javascript" src="../www/js/google-chart-loarder.js"></script>
+   <script type="text/javascript">
+     google.charts.load('current', {'packages':['corechart']});
+    //  google.charts.setOnLoadCallback(drawChart);
+
+     var light_history = [
+       ['time', 'Light level'],
+     ]
+
+     function drawChart() {
+       var data = google.visualization.arrayToDataTable(light_history);
+
+       var options = {
+         title: 'Light level history',
+         hAxis: {title: 'Time',  titleTextStyle: {color: '#333'}},
+         vAxis: {minValue: 0}
+       };
+
+       var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
+       chart.draw(data, options);
+     }
+   </script>
+
 </head>
 
 <body onload="kuzzle_init()">
@@ -76,6 +100,7 @@
         </div>
       </div>
     </div>
+    <div id="chart_div" style="width: 100%; height: 500px;"></div>
   </div>
 
   <script src="../www/js/jquery-3.2.1.min.js"></script>
@@ -220,6 +245,8 @@
             var state = res.document.content.state
             console.log('light level sensor state: ', state)
             document.getElementById('light_level').innerHTML = `<h3>${state.level}lux</h3>`
+            light_history.push([Date.now()/1000 - t0, parseFloat(state.level)])
+            drawChart()
           })
         .onDone((a) => {
           console.log("[DONE] Subscribing to light level sensor events");
@@ -254,6 +281,9 @@
               console.log("Connected to Kuzzle: ", kuzzlehost, ":", kuzzleport);
               kuzzle.setDefaultIndex('iot');
               device_state_col = kuzzle.collection("device-state")
+
+              t0 = Date.now()/1000
+
               subscribe_to_rfid()
               subscribe_to_buttons()
               subscribe_to_motion_sensor()
