@@ -13,35 +13,47 @@
   <script>
     $(function() {
       console.log("hello");
-      $('#navbar').load("navbar.html", () => document.getElementById('menu_dashboard').className ="item nav-link active")
+      $('#navbar').load("navbar.html", () => document.getElementById('menu_dashboard').className = "item nav-link active")
     })
   </script>
 
   <script type="text/javascript" src="js/google-chart-loarder.js"></script>
-   <script type="text/javascript">
-     google.charts.load('current', {'packages':['corechart']});
+  <script type="text/javascript">
+    google.charts.load('current', {
+      'packages': ['corechart']
+    });
     //  google.charts.setOnLoadCallback(drawChart);
 
-     var light_history = [
-       ['time', 'Light level'],
-     ]
+    var light_history = [
+      ['time', 'Light level'],
+    ]
 
-     function drawChart() {
-       var data = google.visualization.arrayToDataTable(light_history);
+    var chart = null
 
-       var options = {
-         title: 'Light level history',
-         curveType : 'function',
-         hAxis: {title: 'Time',  titleTextStyle: {color: '#333'}},
-         vAxis: {minValue: 0}
-       };
+    function drawChart() {
+      var data = google.visualization.arrayToDataTable(light_history);
+
+      var options = {
+        title: 'Light level history',
+        curveType: 'function',
+        hAxis: {
+          title: 'Time',
+          titleTextStyle: {
+            color: '#333'
+          }
+        },
+        vAxis: {
+          minValue: 0
+        }
+      };
 
       //  var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
-       var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+      if (!chart)
+        chart = new google.visualization.LineChart(document.getElementById('chart_div'));
 
-       chart.draw(data, options);
-     }
-   </script>
+      chart.draw(data, options);
+    }
+  </script>
 
 </head>
 
@@ -134,7 +146,8 @@
     }
   </style>
   <script type="text/javascript">
-  MAX_HISTORY = 500
+    MAX_HISTORY = 500
+
     function subscribe_to_rfid(device) {
       console.log("Subscribing to RFID card events");
       device_state_col.subscribe({
@@ -248,8 +261,8 @@
           (err, res) => {
             var state = res.document.content.state
             document.getElementById('light_level').innerHTML = `<h3>${state.level}lux</h3>`
-            light_history.push([Date.now()/1000 - t0, parseFloat(state.level)])
-            if(light_history.length > MAX_HISTORY)
+            light_history.push([Date.now() / 1000 - t0, parseFloat(state.level)])
+            if (light_history.length > MAX_HISTORY)
               light_history.splice(1, 1)
             drawChart()
           })
@@ -283,7 +296,7 @@
             kuzzle.setDefaultIndex('iot');
             device_state_col = kuzzle.collection("device-state")
 
-            t0 = Date.now()/1000
+            t0 = Date.now() / 1000
 
             subscribe_to_rfid(device)
             subscribe_to_buttons(device)
