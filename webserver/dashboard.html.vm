@@ -25,7 +25,7 @@
     //  google.charts.setOnLoadCallback(drawChart);
 
     var light_history = [
-      ['time', 'Light level'],
+      ['time (s)', 'Light level (lux)'],
     ]
 
     var chart = null
@@ -40,7 +40,7 @@
         title: 'Light level history',
         curveType: 'function',
         hAxis: {
-          title: 'Time',
+          title: 'Time (sec)',
           titleTextStyle: {
             color: '#333'
           }
