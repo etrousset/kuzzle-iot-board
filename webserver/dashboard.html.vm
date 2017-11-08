@@ -29,6 +29,9 @@
     ]
 
     var chart = null
+    var chart_need_draw = false
+    var chart_ready = true
+
 
     function drawChart() {
       var data = google.visualization.arrayToDataTable(light_history);
@@ -47,9 +50,13 @@
         }
       };
 
+      chart_need_draw = false
+      chart_ready = false
       //  var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
-      if (!chart)
+      if (!chart) {
         chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+        google.visualization.events.addListener(chart, 'ready', on_light_lvl_chat_ready);
+      }
 
       chart.draw(data, options);
     }
@@ -264,11 +271,18 @@
             light_history.push([Date.now() / 1000 - t0, parseFloat(state.level)])
             if (light_history.length > MAX_HISTORY)
               light_history.splice(1, 1)
-            drawChart()
+            chart_need_draw = true
+            if(chart_ready)
+              drawChart()
           })
         .onDone((a) => {
           console.log("[DONE] Subscribing to light level sensor events");
         })
+    }
+    function on_light_lvl_chat_ready() {
+      chart_ready = true;
+      if(chart_need_draw)
+        drawChart()
     }
 
     function kuzzle_init() {
