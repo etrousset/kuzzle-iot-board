@@ -1,7 +1,0 @@
-Administration server
-=====================
-
-
-
-
-

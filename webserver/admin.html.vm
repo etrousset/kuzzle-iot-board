@@ -8,12 +8,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
   <!-- Bootstrap CSS -->
-  <link rel="stylesheet" href="www/css/bootstrap.min.css" crossorigin="anonymous">
-  <script src="www/js/jquery-3.2.1.min.js"></script>
+  <link rel="stylesheet" href="css/bootstrap.min.css" crossorigin="anonymous">
+  <script src="js/jquery-3.2.1.min.js"></script>
   <script>
     $(function() {
       console.log("hello");
-      $('#navbar').load("admin/navbar.html", () => document.getElementById('menu_admin').className ="item nav-link active")
+      $('#navbar').load("navbar.html", () => document.getElementById('menu_admin').className ="item nav-link active")
     })
   </script>
 </head>
@@ -25,7 +25,7 @@
 
   <div class="container">
     <br>
-    <h3><span class="img-success"></span>Administration</h3>
+    <h3>Administration</h3>
     <hr class="my-4">
     <div class="card mx-auto" style="width: 30rem;">
       <div class="card-header">
@@ -35,12 +35,12 @@
         <form action="/setup" method="post">
           <div class="input-group">
             <label class="input-group-addon" for="kuzzleHost" style="width: 8rem;">Hostname or ip</label>
-            <input type="text" class="form-control" id="kuzzlehost" name="khost " value="${kuzzle.host}" placeholder="hostname or ip address ">
+            <input type="text" class="form-control" id="kuzzlehost" name="khost " value="${config.kuzzle.host}" placeholder="hostname or ip address ">
           </div>
           </br>
           <div class="input-group ">
             <label class="input-group-addon " for="kuzzlePort " style="width: 8rem; ">port</label>
-            <input type="text " class="form-control " id="kuzzleport" name="kport" value="${kuzzle.port}" placeholder="kuzzle port">
+            <input type="text " class="form-control " id="kuzzleport" name="kport" value="${config.kuzzle.port}" placeholder="kuzzle port">
           </div>
       </div>
       <button type="submit" class="btn btn-primary">Apply</button>
@@ -80,10 +80,10 @@
     </hr>
     <div></div>
   </div>
-  <script src="www/js/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
-  <script src="www/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
-  <script src="www/js/bluebird.min.js"></script>
-  <script src="www/js/kuzzle.js"></script>
+  <script src="js/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+  <script src="js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+  <script src="js/bluebird.min.js"></script>
+  <script src="js/kuzzle.js"></script>
   <style>
     .alert {
       margin-bottom: 3px;
@@ -93,11 +93,11 @@
     }
 
     .img-success {
-      content: url(./www/icons/glyphicons-199-ok-circle-white.png);
+      content: url(./icons/glyphicons-199-ok-circle-white.png);
     }
 
     .img-danger {
-      content: url(./www/icons/glyphicons-198-remove-circle.png);
+      content: url(./icons/glyphicons-198-remove-circle.png);
     }
 
     .img-small {

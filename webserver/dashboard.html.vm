@@ -8,8 +8,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
   <!-- Bootstrap CSS -->
-  <link rel="stylesheet" href="../www/css/bootstrap.min.css" crossorigin="anonymous">
-  <script src="../www/js/jquery-3.2.1.min.js"></script>
+  <link rel="stylesheet" href="css/bootstrap.min.css" crossorigin="anonymous">
+  <script src="js/jquery-3.2.1.min.js"></script>
   <script>
     $(function() {
       console.log("hello");
@@ -17,7 +17,7 @@
     })
   </script>
 
-  <script type="text/javascript" src="../www/js/google-chart-loarder.js"></script>
+  <script type="text/javascript" src="js/google-chart-loarder.js"></script>
    <script type="text/javascript">
      google.charts.load('current', {'packages':['corechart']});
     //  google.charts.setOnLoadCallback(drawChart);
@@ -31,11 +31,14 @@
 
        var options = {
          title: 'Light level history',
+         curveType : 'function',
          hAxis: {title: 'Time',  titleTextStyle: {color: '#333'}},
          vAxis: {minValue: 0}
        };
 
-       var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
+      //  var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
+       var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+
        chart.draw(data, options);
      }
    </script>
@@ -103,12 +106,12 @@
     <div id="chart_div" style="width: 100%; height: 500px;"></div>
   </div>
 
-  <script src="../www/js/jquery-3.2.1.min.js"></script>
-  <script src="../www/js/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
-  <script src="../www/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
-  <script src="../www/js/bluebird.min.js"></script>
-  <script src="../www/js/kuzzle.js"></script>
-  <script src="../www/js/js-yaml.min.js"></script>
+  <script src="js/jquery-3.2.1.min.js"></script>
+  <script src="js/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+  <script src="js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+  <script src="js/bluebird.min.js"></script>
+  <script src="js/kuzzle.js"></script>
+  <script src="js/js-yaml.min.js"></script>
   <style>
     .alert {
       margin-bottom: 3px;
@@ -118,11 +121,11 @@
     }
 
     .img-success {
-      content: url(./www/icons/glyphicons-199-ok-circle-white.png);
+      content: url(./icons/glyphicons-199-ok-circle-white.png);
     }
 
     .img-danger {
-      content: url(./www/icons/glyphicons-198-remove-circle.png);
+      content: url(./icons/glyphicons-198-remove-circle.png);
     }
 
     .img-small {
@@ -131,11 +134,11 @@
     }
   </style>
   <script type="text/javascript">
-    function subscribe_to_rfid() {
+    function subscribe_to_rfid(device) {
       console.log("Subscribing to RFID card events");
       device_state_col.subscribe({
             equals: {
-              device_id: "NFC_00000000c9591b74"
+              device_id: 'NFC_' + device.uid
             }
           }, {
             subscribeToSelf: false
@@ -162,11 +165,11 @@
 
     }
 
-    function subscribe_to_buttons() {
+    function subscribe_to_buttons(device) {
       console.log("Subscribing to button events");
       device_state_col.subscribe({
             equals: {
-              device_id: 'buttons_00000000c9591b74'
+              device_id: 'buttons_' + device.uid
             }
           }, {
             subscribeToSelf: false
@@ -209,11 +212,11 @@
         })
     }
 
-    function subscribe_to_motion_sensor() {
+    function subscribe_to_motion_sensor(device) {
       console.log("Subscribing to motion sensor events");
       device_state_col.subscribe({
             equals: {
-              device_id: 'motion_00000000c9591b74'
+              device_id: 'motion_' + device.uid
             }
           }, {
             subscribeToSelf: false
@@ -232,11 +235,11 @@
         })
     }
 
-    function subscribe_to_light_sensor() {
+    function subscribe_to_light_sensor(device) {
       console.log("Subscribing to light level sensor events");
       device_state_col.subscribe({
             equals: {
-              device_id: 'light_lvl_00000000c9591b74'
+              device_id: 'light_lvl_' + device.uid
             }
           }, {
             subscribeToSelf: false
@@ -256,42 +259,44 @@
     function kuzzle_init() {
       console.log('kuzzle_init');
 
-      var configP = new Promise((resolve, reject) => {
-        // YAML file to Javascript object
-        $.get('../config.yaml', function(text) {
-          var config = jsyaml.load(text);
-          console.log(config);
-          resolve(config)
+      // var configP = new Promise((resolve, reject) => {
+      //   // YAML file to Javascript object
+      //   $.get('../config.yaml', function(text) {
+      //     var config = jsyaml.load(text);
+      //     console.log(config);
+      //     resolve(config)
+      //   })
+      // })
+      config = ${config}
+      var device = ${device}
+
+      console.log('Device info:', device);
+      console.log('Configuration:', config);
+
+      kuzzlehost = config.kuzzle.host
+      kuzzleport = config.kuzzle.port
+      console.log("Connecting to kuzzle: ", kuzzlehost, ":", kuzzleport);
+
+      kuzzle = new Kuzzle(kuzzlehost, {
+          port: kuzzleport,
+          autoReconnect: false
+        },
+        (err, res) => {
+          if (err) {
+            console.log('Kuzzle connection error:', err)
+          } else {
+            console.log("Connected to Kuzzle: ", kuzzlehost, ":", kuzzleport);
+            kuzzle.setDefaultIndex('iot');
+            device_state_col = kuzzle.collection("device-state")
+
+            t0 = Date.now()/1000
+
+            subscribe_to_rfid(device)
+            subscribe_to_buttons(device)
+            subscribe_to_motion_sensor(device)
+            subscribe_to_light_sensor(device)
+          }
         })
-      })
-
-      configP.then((config) => {
-        kuzzlehost = config.kuzzle.host
-        kuzzleport = config.kuzzle.port
-        console.log("Connecting to kuzzle: ", kuzzlehost, ":", kuzzleport);
-
-        kuzzle = new Kuzzle(kuzzlehost, {
-            port: kuzzleport,
-            autoReconnect: false
-          },
-          (err, res) => {
-            if (err) {
-              console.log('Kuzzle connection error:', err)
-            } else {
-              console.log("Connected to Kuzzle: ", kuzzlehost, ":", kuzzleport);
-              kuzzle.setDefaultIndex('iot');
-              device_state_col = kuzzle.collection("device-state")
-
-              t0 = Date.now()/1000
-
-              subscribe_to_rfid()
-              subscribe_to_buttons()
-              subscribe_to_motion_sensor()
-              subscribe_to_light_sensor()
-            }
-          })
-        //kuzzle.connect()
-      })
     }
   </script>
 

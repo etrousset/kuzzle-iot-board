@@ -4,9 +4,11 @@ import argparse
 import multiprocessing as mp
 
 import sys
+import os
 
-import admin
+import webserver
 import firmware as f
+from rpi_get_serial import rpi_get_serial
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Kuzzle IoT - multi sensor demo', prog="kuzzle-iot-demo-multi-device")
@@ -20,8 +22,9 @@ if __name__ == "__main__":
 
     with mp.Manager() as manager:
         config_update_event = manager.Event()
-        admin_server = mp.Process(target=admin.start_admin_server, name="admin-server",
-                                  args=(config_update_event,))
+        config_path = os.path.abspath('config.yaml')
+        admin_server = mp.Process(target=webserver.start_admin_server, name="admin-server",
+                                  args=(config_update_event, {'uid': rpi_get_serial()}, config_path))
         admin_server.start()
 
         while 1:
