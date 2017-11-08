@@ -134,6 +134,7 @@
     }
   </style>
   <script type="text/javascript">
+  MAX_HISTORY = 500
     function subscribe_to_rfid(device) {
       console.log("Subscribing to RFID card events");
       device_state_col.subscribe({
@@ -246,9 +247,10 @@
           },
           (err, res) => {
             var state = res.document.content.state
-            console.log('light level sensor state: ', state)
             document.getElementById('light_level').innerHTML = `<h3>${state.level}lux</h3>`
             light_history.push([Date.now()/1000 - t0, parseFloat(state.level)])
+            if(light_history.length > MAX_HISTORY)
+              light_history.splice(1, 1)
             drawChart()
           })
         .onDone((a) => {
@@ -259,14 +261,6 @@
     function kuzzle_init() {
       console.log('kuzzle_init');
 
-      // var configP = new Promise((resolve, reject) => {
-      //   // YAML file to Javascript object
-      //   $.get('../config.yaml', function(text) {
-      //     var config = jsyaml.load(text);
-      //     console.log(config);
-      //     resolve(config)
-      //   })
-      // })
       config = ${config}
       var device = ${device}
 

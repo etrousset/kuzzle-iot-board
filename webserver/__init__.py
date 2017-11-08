@@ -79,12 +79,10 @@ def start_admin_server(conf_update_event, device_info, config_path):
 
     globals()['config_path'] = config_path
     globals()['config'] = load_config()
+    device = device_info
 
     server_path = os.path.dirname(__file__)
-    print(config)
-
     os.chdir(server_path)
-    device = device_info
     config_update_event = conf_update_event
     httpd.serve_forever()
 
