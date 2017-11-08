@@ -9,6 +9,7 @@ import json
 config_path = None
 config = None
 
+
 class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/setup':
