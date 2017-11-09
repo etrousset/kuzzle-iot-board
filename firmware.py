@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 
-import pigpio
+import RPi.GPIO as GPIO
+import serial
+# pigpio
 import logging
 import coloredlogs
 import sys
@@ -18,6 +20,7 @@ yaml = YAML.YAML()
 GPIO_MOTION_SENSOR = 5
 GPIO_BUTTONS = [6, 13, 19, 26]
 GPIO_LED_GREEN = 21
+GPIO_NFC_IRQ = 20
 
 log = logging.getLogger('MAIN')
 
@@ -27,7 +30,8 @@ kuzzle_motion = None
 kuzzle_buttons = None
 kuzzle_light = None
 pn532 = None
-pi = None
+
+GPIO.setmode(GPIO.BCM)
 
 buttons = {
     "button_0": "RELEASED",
@@ -58,25 +62,13 @@ def init(args, config):
     kuzzle_light = KuzzleIOT("light_lvl_{}".format(UID), "light_sensor", host=kuzzle_conf['host'],
                              port=kuzzle_conf['port'])
 
-    log.info('Connecting to RPi through: %s', args.pihost)
-    pi = pigpio.pi(host=args.pihost)
+    GPIO.setup(GPIO_LED_GREEN, GPIO.OUT)
+    GPIO.output(GPIO_LED_GREEN, 0)
 
-    if not pi:
-        log.critical("Failed to connect to 'pigpiod': %s", args.pihost)
-        exit(-1)
+    serial_port = serial.Serial('/dev/serial0', 115200)
 
-    pi.set_mode(GPIO_LED_GREEN, pigpio.OUTPUT)
-    pi.write(GPIO_LED_GREEN, 0)
-
-    serial_handle = pi.serial_open('/dev/serial0', 115200)
-    if not serial_handle:
-        time.sleep(1)
-        serial_handle = pi.serial_open('/dev/serial0', 115200)
-        if not serial_handle:
-            log.critical("Unable to open serial port '/dev/serial0'")
-            exit(-1)
-
-    pn532 = Pn532(pi, serial_handle, kuzzle_rfid.publish_state)
+    log.info('Serial port is: %s', 'OPENED' if serial_port.is_open else 'CLOSED')
+    pn532 = Pn532(serial_port, kuzzle_rfid.publish_state)
 
 
 def logs_init():
@@ -84,9 +76,9 @@ def logs_init():
                         stream=sys.stdout)
 
 
-def on_gpio_changed(gpio, level, tick):
+def on_gpio_changed(gpio, level):
     if gpio in GPIO_BUTTONS:
-        buttons['button_{}'.format(GPIO_BUTTONS.index(gpio))] = 'PRESSED' if level else 'RELEASED'
+        buttons['button_{}'.format(GPIO_BUTTONS.index(gpio))] = 'PRESSED' if not level else 'RELEASED'
         log.debug('Buttons state: %s', buttons)
         kuzzle_buttons.publish_state(buttons)
     elif gpio == GPIO_MOTION_SENSOR:
@@ -96,17 +88,23 @@ def on_gpio_changed(gpio, level, tick):
         log.warning('Unexpected GPIO: %d', gpio)
 
 
+def on_gpio_changed_up(channel):
+    on_gpio_changed(channel, GPIO.input(channel))
+
+
+def on_gpio_changed_down(channel):
+    on_gpio_changed(channel, 0)
+
+
 def motion_sensor_install():
-    pi.set_mode(GPIO_MOTION_SENSOR, pigpio.INPUT)
-    pi.callback(GPIO_MOTION_SENSOR, pigpio.EITHER_EDGE, on_gpio_changed)
+    GPIO.setup(GPIO_MOTION_SENSOR, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.add_event_detect(GPIO_MOTION_SENSOR, GPIO.BOTH, callback=on_gpio_changed_up)
 
 
 def buttons_install():
+    GPIO.setup(GPIO_BUTTONS, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     for gpio in GPIO_BUTTONS:
-        pi.set_mode(gpio, pigpio.INPUT)
-        pi.set_pull_up_down(gpio, pigpio.PUD_UP)
-        pi.set_noise_filter(gpio, 30000, 300)
-        pi.callback(gpio, pigpio.EITHER_EDGE, on_gpio_changed)
+        GPIO.add_event_detect(gpio, GPIO.BOTH, callback=on_gpio_changed_up, bouncetime=200)
 
 
 def load_config():
@@ -116,10 +114,8 @@ def load_config():
 
 
 def cleanup():
-    if pi and pn532 and pn532.serial_handle:
-        pi.serial_close(pn532.serial_handle)
-    if pi:
-        pi.write(GPIO_LED_GREEN, 0)
+    GPIO.output(GPIO_LED_GREEN, 0)
+    GPIO.cleanup()
 
 
 def start_sensing_light():
@@ -153,23 +149,30 @@ def startup(args):
             kuzzle_motion.port,
             res["serverInfo"]["kuzzle"]["version"])
         )
-        pi.write(GPIO_LED_GREEN, 1)
+        GPIO.output(GPIO_LED_GREEN, 1)
         motion_sensor_install()
         buttons_install()
-        if pn532.version_check():
-            log.info('Found a Pn532 RFID/NFC module, starting card polling...')
-            pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
-            pn532_thread.daemon = True
-            pn532_thread.start()
+        while 1:
+            if pn532.version_check():
+                log.info('Found a Pn532 RFID/NFC module, starting card polling...')
+                pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
+                pn532_thread.daemon = True
+                pn532_thread.start()
+                break
+            else:
+                log.warning('Unable to get version from Pn532, not using it...')
+                time.sleep(1)
 
         light_sensor_thread = threading.Thread(target=start_sensing_light, name="light_sensor")
         light_sensor_thread.daemon = True
         light_sensor_thread.start()
     else:
         log.warning("Unable to connect to Kuzzle...")
-
-    config_update_event.wait()
-    log.info("Configuration changed, restarting firmware...")
-    config_update_event.clear()
-
-    cleanup()
+    try:
+        config_update_event.wait()
+        log.info("Configuration changed, restarting firmware...")
+    except KeyboardInterrupt as e:
+        pass
+    finally:
+        config_update_event.clear()
+        cleanup()

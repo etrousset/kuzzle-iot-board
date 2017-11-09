@@ -153,7 +153,7 @@
     }
   </style>
   <script type="text/javascript">
-    MAX_HISTORY = 500
+    MAX_HISTORY = 1000
 
     function subscribe_to_rfid(device) {
       console.log("Subscribing to RFID card events");
