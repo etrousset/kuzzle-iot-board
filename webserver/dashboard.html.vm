@@ -267,7 +267,7 @@
           },
           (err, res) => {
             var state = res.document.content.state
-            document.getElementById('light_level').innerHTML = `<h3>${state.level}lux</h3>`
+            document.getElementById('light_level').innerHTML = `<p>${state.level.toFixed(2)}lux</p>`
             light_history.push([Date.now() / 1000 - t0, parseFloat(state.level)])
             if (light_history.length > MAX_HISTORY)
               light_history.splice(1, 1)
