@@ -51,7 +51,7 @@ State published in Kuzzle:
 Device ID: "buttons_" + RPi base ID 
 
 State published in Kuzzle:
-```json 
+```javascript 
 {
     "button_0": "BTN_STATE",
     "button_1": "BTN_STATE",
@@ -68,8 +68,8 @@ A motion sensor is connected to GPIO 5
 Device ID: "motion_" + RPi base ID 
 
 State published in Kuzzle:
-```json 
+```javascript 
 {
-    "motion": True/False   # True when mouvment is detect, False when no more
+    "motion": True/False   // True when mouvment is detect, False when no more
 }
 ```
