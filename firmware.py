@@ -126,7 +126,7 @@ def start_sensing_light():
     try:
         while 1:
             voltage, lux = tept.read_lux()
-            kuzzle_light.publish_state({"level": "{:.3f}".format(lux)})
+            kuzzle_light.publish_state({"level": lux})  # "{:.3f}".format(lux)})
             time.sleep(0.1)
     except KeyboardInterrupt as e:
         pass
