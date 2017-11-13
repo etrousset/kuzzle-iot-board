@@ -59,7 +59,7 @@ State published in Kuzzle:
     "button_3": "BTN_STATE",
 }
 ```
-With **BTN_STATE** in ["PRESSED", "RELEASED"]
+With **BTN_STATE** in \["PRESSED", "RELEASED"]
 
 ### Motion sensor
 
@@ -73,3 +73,12 @@ State published in Kuzzle:
     "motion": True/False   // True when mouvment is detect, False when no more
 }
 ```
+
+## Configure
+
+There is a webserver that allow configuring the multi-sensor, for now allow configure the host and port where to find Kuzzle.
+The webserver is accessible through [http://kuzzle-sensor.local:8083/]()
+
+There is also a dashboard that allow visualising the state of the sensor. 
+The dashboard is using Kuzzle JS SDK available here: 
+https://github.com/kuzzleio/sdk-javascript and uses the data recorded on Kuzzle to display the dashboard
