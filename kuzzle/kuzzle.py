@@ -69,8 +69,12 @@ class KuzzleIOT(object):
             "device_type": self.device_type,
             "state": state
         }
-        req = requests.post(url=url, json=body)
-        res = self.JSON_DEC.decode(req.text)
+
+        try:
+            req = requests.post(url=url, json=body)
+            res = self.JSON_DEC.decode(req.text)
+        except Exception as e:
+            self.LOG.error('Failed to publish state to Kuzzle: %s', e)
 
         if res['status'] != 200:
             self.LOG.error("Error publishing device state: status = %d", res['status'])
