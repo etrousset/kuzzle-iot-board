@@ -28,7 +28,8 @@ class Pn532(object):
                             stream=sys.stdout)
 
         self.LOG.setLevel(logging.DEBUG)
-        self.serial_write(bytes([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+        self.serial_write(
+            bytes([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
 
     def version_check(self):
 
@@ -106,6 +107,11 @@ class Pn532(object):
     def parse_card_id(frame):
         data = frame[7:]
         nb_cards = data[0]
+
+        Pn532.LOG.debug("Nb card: %d", nb_cards)
+        if nb_cards == 0:
+            return None
+
         card_type = data[1]
         card_len = data[2]
         card_data = data[3:card_len + 3]
@@ -152,7 +158,12 @@ class Pn532(object):
     def start_polling(self):
         Pn532.LOG.debug("Start polling for RFID cards...")
 
-        polling_data = [0xFF, 0x01, 0x10]
+        polling_data = [
+            0x64,  # PollNr : Number of polling [0x1-0xFE] or 0xFF for endless polling
+            0x01,  # Number of 150ms periods
+            0x10  # Type 1
+        ]
+
         in_list_passive_target_data = [0x01, 0x00, ]
 
         frame = self._frame(Pn532.CMD_IN_AUTO_POLL, bytes(polling_data))
@@ -170,10 +181,13 @@ class Pn532(object):
                 Pn532.LOG.debug(self.hex_dump(frame))
                 card = self.parse_card_id(frame)
 
-                self.LOG.info('Card ID: 0x%04x entering field', int.from_bytes(card["NFCID"], byteorder='little'))
-                self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': True})
+                if card:
+                    self.LOG.info('Card ID: 0x%04x entering field', int.from_bytes(card["NFCID"], byteorder='little'))
+                    self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': True})
+                    in_field = True
+                else:
+                    in_field = False
 
-                in_field = True
                 while in_field:
 
                     frame = self._frame(self.CMD_RF_CONFIGURATION, bytes([0x05, 0x00, 0x01, 0x02]))
@@ -212,14 +226,14 @@ class Pn532(object):
                                       int.from_bytes(card["NFCID"], byteorder='little'))
                         self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': False})
 
-                        frame = self._frame(self.CMD_IN_AUTO_POLL, bytes(polling_data))
-                        self.serial_write(frame)
+            frame = self._frame(self.CMD_IN_AUTO_POLL, bytes(polling_data))
+            self.serial_write(frame)
 
-                        frame = self.serial_read_ack()
-                        if self._check_ack(frame):
-                            self.LOG.debug('InAutoPoll - ACK OK')
-                        else:
-                            self.LOG.debug('InAutoPoll - ACK NOT OK')
+            frame = self.serial_read_ack()
+            if self._check_ack(frame):
+                self.LOG.debug('InAutoPoll - ACK OK')
+            else:
+                self.LOG.debug('InAutoPoll - ACK NOT OK')
 
 
 if __name__ == '__main__':
