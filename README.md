@@ -7,6 +7,7 @@ The multi sensor device based on a raspberry pi to demonstratre Kuzzle usage as 
 ### Light sensor Tept5700
 
 Light level is measured using TEPT5700 ambiant light sensor, datasheet is available here: http://www.vishay.com/docs/81321/tept5700.pdf
+
 The light level acquisition is done using a 12bits DAC (MCP3208) through SPI bus
 
 ### NFC
