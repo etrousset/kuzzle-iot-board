@@ -39,8 +39,8 @@ Device ID: "NFC_" + RPi base ID
 State published in Kuzzle:
 ```javascript 
 {
-    "card_id": "12AADDCCD",  # The hexadecimal ID of the RFID sensed tag/card 
-    "in_field": True/False   # True is the card is entering the field, False if leaving
+    "card_id": "12AADDCCD",  // The hexadecimal ID of the RFID sensed tag/card 
+    "in_field": True/False   // True if the card is entering the field, False if leaving
 }
 ```
 
