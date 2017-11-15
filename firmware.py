@@ -2,7 +2,6 @@
 
 import RPi.GPIO as GPIO
 import serial
-# pigpio
 import logging
 import coloredlogs
 import sys
@@ -141,38 +140,50 @@ def startup(args):
     config = load_config()
     init(cmd_args, config)
 
-    res = kuzzle_motion.server_info()
+    retry = 3
+    while retry:
+        res = kuzzle_motion.server_info()
 
-    if res:
-        log.debug('Connected to Kuzzle on http://{}:{}, version = {}'.format(
-            kuzzle_motion.host,
-            kuzzle_motion.port,
-            res["serverInfo"]["kuzzle"]["version"])
-        )
-        GPIO.output(GPIO_LED_GREEN, 1)
-        motion_sensor_install()
-        buttons_install()
-        while 1:
-            if pn532.version_check():
-                log.info('Found a Pn532 RFID/NFC module, starting card polling...')
-                pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
-                pn532_thread.daemon = True
-                pn532_thread.start()
-                break
+        if res:
+            retry = 0
+            log.debug('Connected to Kuzzle on http://{}:{}, version = {}'.format(
+                kuzzle_motion.host,
+                kuzzle_motion.port,
+                res["serverInfo"]["kuzzle"]["version"])
+            )
+            GPIO.output(GPIO_LED_GREEN, 1)
+            motion_sensor_install()
+            buttons_install()
+            while 1:
+                if pn532.version_check():
+                    log.info('Found a Pn532 RFID/NFC module, starting card polling...')
+                    pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
+                    pn532_thread.daemon = True
+                    pn532_thread.start()
+                    break
+                else:
+                    log.warning('Unable to get version from Pn532, not using it...')
+                    time.sleep(1)
+
+            light_sensor_thread = threading.Thread(target=start_sensing_light, name="light_sensor")
+            light_sensor_thread.daemon = True
+            light_sensor_thread.start()
+        else:
+            log.warning("Unable to connect to Kuzzle...")
+            retry -= 1
+            if retry:
+                log.info('Trying to reconnect in 5s, %d retries remaining', retry)
             else:
-                log.warning('Unable to get version from Pn532, not using it...')
-                time.sleep(1)
+                log.critical('Impossible to connect to Kuzzle service...quitting')
+                exit(-1)
 
-        light_sensor_thread = threading.Thread(target=start_sensing_light, name="light_sensor")
-        light_sensor_thread.daemon = True
-        light_sensor_thread.start()
-    else:
-        log.warning("Unable to connect to Kuzzle...")
+            time.sleep(5)
+
     try:
         config_update_event.wait()
         log.info("Configuration changed, restarting firmware...")
+        config_update_event.clear()
     except KeyboardInterrupt as e:
         pass
     finally:
-        config_update_event.clear()
         cleanup()

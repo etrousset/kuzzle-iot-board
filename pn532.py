@@ -1,4 +1,6 @@
 import logging
+from typing import *
+
 import coloredlogs
 import RPi.GPIO as GPIO
 import sys
@@ -12,9 +14,11 @@ class Pn532(object):
 
     CMD_DIAGNOSE = 0x01
     CMD_GET_FIRMWARE_VERSION = 0x02
+    CMD_SET_PARAMETERS = 0x12
+    CMD_SAM_CONFIGURATION = 0x14
+    CMD_RF_CONFIGURATION = 0x32
     CMD_IN_LIST_PASSIVE_TARGET = 0x4A
     CMD_IN_AUTO_POLL = 0x60
-    CMD_RF_CONFIGURATION = 0x32
 
     LOG = logging.getLogger('PN532')
 
@@ -30,23 +34,25 @@ class Pn532(object):
         self.LOG.setLevel(logging.DEBUG)
         self.serial_write(
             bytes([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+        time.sleep(0.5)
+        self.cancel_command()
+        self.sam_configuration()
 
-    def version_check(self):
-
-        # check we are able to communicate with PN532
+    def cancel_command(self):
+        """
+        Cancel any pending operation on the Pn532
+        :return:
+        """
         self.serial_write(self.ACK)
 
+    def version_check(self):
         self.LOG.debug("Get PN532 firmware revision: GetFirmwareVersion")
         self.serial_write(self._frame(Pn532.CMD_GET_FIRMWARE_VERSION))
 
-        frame = self.serial_read_ack()
-
-        if not frame:
-            self.LOG.error("GetFirmwareVersion: Didn't receive any data")
-        elif not self._check_ack(frame):
-            self.LOG.error("GetFirmwareVersion: ACK NOT OK")
+        if self._check_ack():
+            self.LOG.debug("GetFirmwareVersion: ACK")
         else:
-            self.LOG.debug("GetFirmwareVersion: ACK OK")
+            self.LOG.error("GetFirmwareVersion: NACK")
 
         # time.sleep(0.3)
         frame = self._read_frame()
@@ -61,14 +67,43 @@ class Pn532(object):
 
         return fw_version
 
+    def check_communication(self):
+        pass
+
+    def set_parameters(self, flags: int):
+        assert 0x00 <= flags <= 0xFF, "flag is out of range"
+        f = self._frame(self.CMD_SET_PARAMETERS, bytes([flags]))
+
+        self.serial_write(f)
+
+        if self._check_ack():
+            self.LOG.debug('setParameters: ACK')
+        else:
+            self.LOG.debug('setParameters: NACK')
+
+        resp = self._read_frame()
+
+    def sam_configuration(self):
+
+        f = self._frame(self.CMD_SAM_CONFIGURATION, bytes([0x01, 0x17, 0x00]))
+
+        self.serial_write(f)
+
+        if self._check_ack():
+            self.LOG.debug('SAMConfiguration: ACK')
+        else:
+            self.LOG.debug('SAMConfiguration: NACK')
+
+        resp = self._read_frame()
+
     @staticmethod
     def hex_dump(b, sep=' ', prefix=None):
-        _str = "{:10}: ".format(prefix) if prefix else ""
+        _str = "{:13}: ".format(prefix) if prefix else ""
 
         for a in b:
             _str += "%02X%s" % (a, sep)
 
-        # Pn532.LOG.debug(_str)
+        Pn532.LOG.debug(_str)
         return _str
 
     @staticmethod
@@ -87,9 +122,13 @@ class Pn532(object):
 
         return frame
 
-    @staticmethod
-    def _check_ack(frame: bytes) -> bool:
-        return frame == Pn532.ACK
+    def _check_ack(self) -> bool:
+        frame = self.serial_read_ack()
+        if frame == Pn532.ACK:
+            return True
+        else:
+            self.LOG.error(self.hex_dump(frame, prefix='NACK frame'))
+            return False
 
     @staticmethod
     def parse_firmware_version(frame):
@@ -103,8 +142,8 @@ class Pn532(object):
             Pn532.LOG.critical("Invalid firmware version frame: %s", frame)
             return None
 
-    @staticmethod
-    def parse_card_id(frame):
+    def parse_card_id(self, frame: bytes) -> Optional[Dict[str, Any]]:
+        self.hex_dump(frame, prefix='InAutoPoll response')
         data = frame[7:]
         nb_cards = data[0]
 
@@ -126,6 +165,7 @@ class Pn532(object):
         return {'SENS_RES': SENS_RES, 'SEL_RES': SENS_RES, 'NFCID': NFCID}
 
     def serial_write(self, frame):
+        self.hex_dump(frame, prefix='Write frame')
         self.serial_port.write(frame)
 
     def _read_frame(self):
@@ -147,6 +187,9 @@ class Pn532(object):
         self.hex_dump(dcs, prefix='DCS')
         self.hex_dump(postamble, prefix='POSTAMBLE')
 
+        if int.from_bytes(tfi, byteorder='little') == 0x7f:
+            self.LOG.error("Syntax error frame!")
+
         return preamble + startcode + lenght + lcs + tfi + data + dcs + postamble
 
     def serial_read(self, count: int = 1):
@@ -157,6 +200,10 @@ class Pn532(object):
 
     def start_polling(self):
         Pn532.LOG.debug("Start polling for RFID cards...")
+
+        self.cancel_command()
+        self.sam_configuration()
+
 
         polling_data = [
             0x64,  # PollNr : Number of polling [0x1-0xFE] or 0xFF for endless polling
@@ -169,11 +216,10 @@ class Pn532(object):
         frame = self._frame(Pn532.CMD_IN_AUTO_POLL, bytes(polling_data))
         self.serial_write(frame)
 
-        frame = self.serial_read_ack()
-        if self._check_ack(frame):
-            Pn532.LOG.debug('InAutoPoll - ACK OK')
+        if self._check_ack():
+            Pn532.LOG.debug('InAutoPoll - ACK')
         else:
-            Pn532.LOG.warning('InAutoPoll - ACK NOT OK')
+            Pn532.LOG.warning('InAutoPoll - NACK')
 
         while 1:
             frame = self._read_frame()
@@ -194,9 +240,7 @@ class Pn532(object):
                     self.LOG.debug('RfConfiguration: %s', self.hex_dump(frame))
                     self.serial_write(frame)
 
-                    frame = self.serial_read_ack()
-
-                    if self._check_ack(frame):
+                    if self._check_ack():
                         self.LOG.debug('RfConfiguration - ACK OK')
                     else:
                         self.LOG.error('RfConfiguration - ACK NOT OK')
@@ -209,8 +253,7 @@ class Pn532(object):
                     self.LOG.debug('InListPassive: %s', self.hex_dump(frame))
                     self.serial_write(frame)
 
-                    frame = self.serial_read_ack()
-                    if self._check_ack(frame):
+                    if self._check_ack():
                         self.LOG.debug('InListPassive - ACK OK')
                     else:
                         self.LOG.debug('InListPassive - ACK NOT OK')
@@ -229,8 +272,7 @@ class Pn532(object):
             frame = self._frame(self.CMD_IN_AUTO_POLL, bytes(polling_data))
             self.serial_write(frame)
 
-            frame = self.serial_read_ack()
-            if self._check_ack(frame):
+            if self._check_ack():
                 self.LOG.debug('InAutoPoll - ACK OK')
             else:
                 self.LOG.debug('InAutoPoll - ACK NOT OK')
@@ -245,9 +287,9 @@ if __name__ == '__main__':
     pn532 = Pn532(serialport, print)
 
     try:
-        while 1:
-            v = pn532.version_check()
-            if v:
-                pn532.start_polling()
+        v = pn532.version_check()
+        # pn532.set_parameters(0x14)
+        if v:
+            pn532.start_polling()
     except KeyboardInterrupt:
         pass
