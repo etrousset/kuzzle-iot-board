@@ -5,7 +5,6 @@ import airspeed
 from ruamel.yaml import YAML
 import os
 import json
-
 config_path = None
 config = None
 
@@ -71,11 +70,10 @@ def apply_config(args):
     with open(config_path, mode='w') as f:
         yaml.dump(config, f)
 
-    config_update_event.set()
 
+    #TODO: restart kuzzle-firmware service!!!
 
-def start_admin_server(conf_update_event, device_info, config_path):
-    global config_update_event
+def start_admin_server(device_info, config_path):
     global device
 
     globals()['config_path'] = config_path
@@ -84,7 +82,6 @@ def start_admin_server(conf_update_event, device_info, config_path):
 
     server_path = os.path.dirname(__file__)
     os.chdir(server_path)
-    config_update_event = conf_update_event
     httpd.serve_forever()
 
 
@@ -108,3 +105,4 @@ def load_config():
     with open(config_path) as f:
         config_str = f.read()
     return yaml.load(config_str)
+

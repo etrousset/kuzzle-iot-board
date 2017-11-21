@@ -12,7 +12,7 @@ import threading
 import asyncio
 from neopixeldevice import NeopixelDevice, LED_COUNT, LED_PIN, LightMode, ws as ws_
 
-from rpi_get_serial import *
+from utils import *
 from pn532 import Pn532
 from kuzzle.kuzzle import KuzzleIOT
 

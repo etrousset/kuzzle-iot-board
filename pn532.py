@@ -34,9 +34,9 @@ class Pn532(object):
         self.LOG.setLevel(logging.DEBUG)
         self.serial_write(
             bytes([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
-        time.sleep(0.5)
+        time.sleep(1)
         self.cancel_command()
-        time.sleep(0.5)
+        time.sleep(1)
         self.sam_configuration()
 
     def cancel_command(self):
