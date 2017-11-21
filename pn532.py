@@ -36,6 +36,7 @@ class Pn532(object):
             bytes([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
         time.sleep(0.5)
         self.cancel_command()
+        time.sleep(0.5)
         self.sam_configuration()
 
     def cancel_command(self):
@@ -84,7 +85,7 @@ class Pn532(object):
         resp = self._read_frame()
 
     def sam_configuration(self):
-
+        self.LOG.info('>SAMConfiguration')
         f = self._frame(self.CMD_SAM_CONFIGURATION, bytes([0x01, 0x17, 0x00]))
 
         self.serial_write(f)
@@ -95,6 +96,7 @@ class Pn532(object):
             self.LOG.debug('SAMConfiguration: NACK')
 
         resp = self._read_frame()
+        self.LOG.info('<SAMConfiguration')
 
     @staticmethod
     def hex_dump(b, sep=' ', prefix=None):

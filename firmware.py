@@ -9,6 +9,8 @@ import argparse
 import ruamel.yaml as YAML
 import time
 import threading
+import asyncio
+from neopixeldevice import NeopixelDevice, LED_COUNT, LED_PIN, LightMode, ws as ws_
 
 from rpi_get_serial import *
 from pn532 import Pn532
@@ -28,7 +30,28 @@ kuzzle_rfid = None
 kuzzle_motion = None
 kuzzle_buttons = None
 kuzzle_light = None
+kuzzle_neo = None
+
 pn532 = None
+
+neo = None
+
+# @formatter: off
+default_state = {
+    "mode": LightMode.COLOR_RAMP.value,
+    "ramp": [
+        (255, 0, 0),
+        (127, 127, 0),
+        (0, 255, 0),
+        (0, 127, 127),
+        (0, 0, 255),
+        (127, 0, 127),
+        (255, 127, 0),
+        (255, 255, 255),
+    ]
+}
+
+# @formatter:on
 
 GPIO.setmode(GPIO.BCM)
 
@@ -45,14 +68,22 @@ def init(args, config):
     global kuzzle_buttons
     global kuzzle_rfid
     global kuzzle_light
+    global kuzzle_neo
     global pn532
     global pi
     global UID
+    global neo
+
+    GPIO.setup(GPIO_LED_GREEN, GPIO.OUT)
+    GPIO.output(GPIO_LED_GREEN, 0)
 
     kuzzle_conf = config["kuzzle"]
 
     UID = rpi_get_serial()
     log.info('Getting device base UID: %s', UID)
+
+    neo = NeopixelDevice(LED_COUNT, LED_PIN, strip_type=ws_.WS2811_STRIP_GRB)
+    neo.state = default_state
 
     log.info('Connecting to Kuzzle on {}:{}'.format(kuzzle_conf['host'], kuzzle_conf['port']))
     kuzzle_rfid = KuzzleIOT("NFC_" + UID, "RFID_reader", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
@@ -60,18 +91,28 @@ def init(args, config):
     kuzzle_buttons = KuzzleIOT("buttons_{}".format(UID), "button", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
     kuzzle_light = KuzzleIOT("light_lvl_{}".format(UID), "light_sensor", host=kuzzle_conf['host'],
                              port=kuzzle_conf['port'])
+    kuzzle_neo = KuzzleIOT('rgb_light_{}'.format(UID), 'Neopixel_8-linear', host=kuzzle_conf['host'],
+                           port=kuzzle_conf['port'])
 
-    GPIO.setup(GPIO_LED_GREEN, GPIO.OUT)
-    GPIO.output(GPIO_LED_GREEN, 0)
+    asyncio.get_event_loop().run_until_complete(
+        asyncio.gather(
+            kuzzle_buttons.connect(None),
+            kuzzle_light.connect(None),
+            kuzzle_motion.connect(None),
+            kuzzle_rfid.connect(None),
+            kuzzle_neo.connect(neo.on_kuzzle_connected),
+        )
+    )
+
+    log.debug('All KuzzleIoT instances are connected...')
 
     serial_port = serial.Serial('/dev/serial0', 115200)
-
     log.info('Serial port is: %s', 'OPENED' if serial_port.is_open else 'CLOSED')
     pn532 = Pn532(serial_port, kuzzle_rfid.publish_state)
 
 
 def logs_init():
-    coloredlogs.install(logger=log, fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG,
+    coloredlogs.install(logger=log, fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG,
                         stream=sys.stdout)
 
 
@@ -134,11 +175,12 @@ def start_sensing_light():
 def startup(args):
     logs_init()
 
-    config_update_event = args['update_evt']
-    cmd_args = args['cmd_line']
+    # config_update_event = args['update_evt']
+    # cmd_args = args['cmd_line']
 
     config = load_config()
-    init(cmd_args, config)
+    # init(cmd_args, config)
+    init(None, config)
 
     retry = 3
     while retry:
@@ -167,7 +209,7 @@ def startup(args):
 
             light_sensor_thread = threading.Thread(target=start_sensing_light, name="light_sensor")
             light_sensor_thread.daemon = True
-            light_sensor_thread.start()
+            # light_sensor_thread.start()
         else:
             log.warning("Unable to connect to Kuzzle...")
             retry -= 1
@@ -180,10 +222,16 @@ def startup(args):
             time.sleep(5)
 
     try:
-        config_update_event.wait()
+        log.info("Entering event loop...")
+        print(asyncio.get_event_loop())
+        asyncio.get_event_loop().run_forever()
         log.info("Configuration changed, restarting firmware...")
         config_update_event.clear()
     except KeyboardInterrupt as e:
         pass
     finally:
         cleanup()
+
+
+if __name__ == '__main__':
+    startup(None)

@@ -35,7 +35,7 @@
         <form action="/setup" method="post">
           <div class="input-group">
             <label class="input-group-addon" for="kuzzleHost" style="width: 8rem;">Hostname or ip</label>
-            <input type="text" class="form-control" id="kuzzlehost" name="khost " value="${config.kuzzle.host}" placeholder="hostname or ip address " onchange="validate_kuzzle_host()">
+            <input type="text" class="form-control" id="kuzzlehost" name="khost" value="${config.kuzzle.host}" placeholder="hostname or ip address " onchange="validate_kuzzle_host()">
           </div>
           </br>
           <div class="input-group ">
