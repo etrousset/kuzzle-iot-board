@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import signal
 
 import RPi.GPIO as GPIO
 import logging
@@ -19,8 +20,7 @@ yaml = YAML.YAML()
 
 GPIO_MOTION_SENSOR = 5
 GPIO_BUTTONS = [6, 13, 19, 26]
-GPIO_LED_GREEN = 21
-GPIO_NFC_IRQ = 20
+GPIO_LED_GREEN = 20
 
 log = logging.getLogger('MAIN')
 
@@ -109,7 +109,8 @@ def init(args, config):
 
 
 def logs_init():
-    coloredlogs.install(logger=log, fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG,
+    coloredlogs.install(logger=log, fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        level=logging.DEBUG,
                         stream=sys.stdout)
 
 
@@ -169,8 +170,24 @@ def start_sensing_light():
         pass
 
 
+def on_sigterm(sig_num, stack_frame):
+    print("I'm dying!!!")
+    GPIO.output(GPIO_LED_GREEN, 0)
+    time.sleep(0.25)
+    GPIO.output(GPIO_LED_GREEN, 1)
+    time.sleep(0.25)
+    GPIO.output(GPIO_LED_GREEN, 0)
+    time.sleep(0.25)
+    GPIO.output(GPIO_LED_GREEN, 1)
+    time.sleep(0.25)
+    GPIO.output(GPIO_LED_GREEN, 0)
+    exit(0)
+
+
 def startup(args):
     logs_init()
+
+    signal.signal(signal.SIGTERM, on_sigterm)
 
     # config_update_event = args['update_evt']
     # cmd_args = args['cmd_line']
