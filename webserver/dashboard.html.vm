@@ -133,7 +133,11 @@
 <div class="col-sm mt-5">
   <div class="card" style="width: 15rem;">
     <div class="card-header">
-    Color light
+    RGB Light
+    <label class="switch" style="float: right">
+      <input type="checkbox" onchange="rgb_light_switch()" id="rgb_light_switch">
+      <span class="slider round"></span>
+    </label>
     </div>
     <div class="card-body">
     <div class="card-text" id='rgb_light_content'>
@@ -198,6 +202,63 @@
                 width: 15px;
                 height: 15px;
             }
+
+           .switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 23px;
+}
+
+.switch input {display:none;}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 15px;
+  width: 15px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(16px);
+  -ms-transform: translateX(16px);
+  transform: translateX(16px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
         </style>
         <script type="text/javascript">
             MAX_HISTORY = 1000
@@ -349,15 +410,29 @@
               console.log("Subscribing to RGB light state");
               device_state_col
                 .subscribe({
-                  equals: {
-                    device_id: 'rgb_light_' + device.uid
-                  }
+                  and : [
+                    {
+                      equals: {
+                        device_id: 'rgb_light_' + device.uid
+                      }
+                    },
+                    {
+                      equals: {
+                        partial_state: false
+                      }
+                    }
+                    ]
               }, {
-                subscribeToSelf: false
+                subscribeToSelf: true
               }, (err, res) => {
               
               var state = res.document.content.state
               console.log("RGB light: ", state);
+
+              if(state.on)
+                $('#rgb_light_switch')[0].checked = true
+              else
+                $('#rgb_light_switch')[0].checked = false
 
               if(state.mode === "single-color") {
                 for(i=0; i< 8; i++)
@@ -381,16 +456,36 @@
                     drawChart()
             }
 
+            function rgb_light_switch() {
+              b = $('#rgb_light_switch')[0]
+              console.log(b.checked);
+
+              device_state = {
+                device_id: 'rgb_light_' + device.uid,
+                partial_state: true,
+                state : {
+                  on: b.checked
+                }
+              }
+
+              console.log("Device state: ", device_state)
+
+              kuzzle.collection('device-state')
+              .createDocument(device_state, (err, res) => {
+                if(err)
+                  console.log(err);
+              })
+            }
+
             function update_rgb_light (e) {
               device_state = {
                 device_id: 'rgb_light_' + device.uid,
+                partial_state: true,
                 state : {
                   mode: "single-color",
                   color: e.srcElement.value
                 }
               }
-
-              // e.srcElement.css("background" : e.srcElement.value)
 
               console.log("Device state: ", device_state)
 

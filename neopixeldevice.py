@@ -53,6 +53,7 @@ class NeopixelDevice(Adafruit_NeoPixel):
         self.k = None
         self.led_count = led_count
         self.__state = {
+            'on': True,
             'mode': LightMode.COLOR_RAMP.value,
             'ramp': [(255, 0, 0) for x in range(0, LED_COUNT)]
         }
@@ -63,23 +64,28 @@ class NeopixelDevice(Adafruit_NeoPixel):
         self.LOG.debug("Applying new state: %s", json.dumps(self.state, sort_keys=True))
         mode = self.state["mode"]
 
-        if mode == LightMode.SINGLE_COLOR.value:
-            color = self.state["color"]
+        if self.state['on']:
+            if mode == LightMode.SINGLE_COLOR.value:
+                color = self.state["color"]
 
-            if type(color) == str:
-                if str(color).startswith('#'):
-                    color = color[1:]
-                color = int(color, 16)
+                if type(color) == str:
+                    if str(color).startswith('#'):
+                        color = color[1:]
+                    color = int(color, 16)
 
-            print("led count", self.led_count, ', color: ', hex(color))
+                print("led count", self.led_count, ', color: ', hex(color))
 
+                for i in range(0, self.led_count + 1):
+                    self.setPixelColor(i, color)
+                    # TODO: Handle the case were color is an int or an (r, g, b) tuple
+            elif mode == LightMode.COLOR_RAMP.value:
+                for i, c in enumerate(self.state["ramp"]):
+                    # print("{:3d}: {}".format(i, c))
+                    self.setPixelColorRGB(i, c[0], c[1], c[2])
+        else:
             for i in range(0, self.led_count + 1):
-                self.setPixelColor(i, color)
-                # TODO: Handle the case were color is an int or an (r, g, b) tuple
-        elif mode == LightMode.COLOR_RAMP.value:
-            for i, c in enumerate(self.state["ramp"]):
-                # print("{:3d}: {}".format(i, c))
-                self.setPixelColorRGB(i, c[0], c[1], c[2])
+                self.setPixelColor(i, 0)
+
         self.show()
 
     @property
@@ -88,20 +94,21 @@ class NeopixelDevice(Adafruit_NeoPixel):
 
     @state.setter
     def state(self, state: dict):
-        self.__state = state
+        self.__state.update(state)
         self.__apply_state()
 
     def publish_state(self):
         if self.k:
-            self.k.publish_state(neo.state)
+            self.k.publish_state(self.state)
 
-    async def __on_new_state_task(self, state):
+    async def __on_new_state_task(self, state, is_partial):
         self.LOG.debug("__on_new_state_task")
         self.state = state
+        self.publish_state()
 
-    def on_new_state(self, state):
+    def on_new_state(self, state, is_partial):
         self.LOG.debug("on_new_state")
-        self.event_loop.create_task(self.__on_new_state_task(state))
+        self.event_loop.create_task(self.__on_new_state_task(state, is_partial))
 
     def on_kuzzle_connected(self, k):
         self.k = k
@@ -116,6 +123,7 @@ if __name__ == '__main__':
 
     # @formatter: off
     default_state = {
+        "on": True,
         "mode": LightMode.COLOR_RAMP.value,
         "ramp": [
             (255, 0, 0),

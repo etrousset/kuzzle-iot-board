@@ -70,30 +70,11 @@ class KuzzleIOT(object):
             self.LOG.critical('Unable to connect to Kuzzle: http://%s:%s', self.host, self.port)
             return None
 
-    def publish_state_http(self, state):
-        url = "http://{}:{}/{}/{}/_create".format(self.host, self.port, KuzzleIOT.INDEX_IOT,
-                                                  KuzzleIOT.COLLECTION_DEVICE_STATES)
+    async def __publish_state_task(self, state, partial):
         body = {
             "device_id": self.device_uid,
             "device_type": self.device_type,
-            "state": state
-        }
-
-        try:
-            req = requests.post(url=url, json=body)
-            res = self.JSON_DEC.decode(req.text)
-        except Exception as e:
-            self.LOG.error('Failed to publish state to Kuzzle: %s', e)
-
-        if res['status'] != 200:
-            self.LOG.error("Error publishing device state: status = %d", res['status'])
-            self.LOG.error("\tMessage: %s", res['error']['message'])
-            self.LOG.error("\tStack: \n%s", res['error']['stack'])
-
-    async def __publish_state_task(self, state):
-        body = {
-            "device_id": self.device_uid,
-            "device_type": self.device_type,
+            "partial_state": partial,
             "state": state
         }
 
@@ -160,7 +141,10 @@ class KuzzleIOT(object):
 
             if resp["action"] in ['replace', 'create'] and self.on_state_changed and resp[
                 "requestId"] != "publish_" + self.device_uid:
-                self.on_state_changed(resp["result"]["_source"]["state"])
+                source = resp["result"]["_source"]
+
+                is_partial = source["is_partial"] if "state_partial"  in source else False
+                self.on_state_changed(source["state"], is_partial)
 
     def __subscribe_state(self, on_state_changed: callable):
         self.LOG.debug("Adding task to subscribe to state change")
@@ -170,13 +154,13 @@ class KuzzleIOT(object):
         self.LOG.debug("<<Adding task to subscribe state>>")
         return self.event_loop.run_in_executor(None, self.__subscribe_state, on_state_changed)
 
-    def __publish_state(self, state):
+    def __publish_state(self, state, partial):
         self.LOG.debug("Adding task to publish state")
-        return self.event_loop.create_task(self.__publish_state_task(state))
+        return self.event_loop.create_task(self.__publish_state_task(state, partial))
 
-    def publish_state(self, state):
+    def publish_state(self, state, partial=False):
         self.LOG.debug("<<Adding task to publish state>>")
-        return self.event_loop.run_in_executor(None, self.__publish_state, state)
+        return self.event_loop.run_in_executor(None, self.__publish_state, state, partial)
 
     def connect(self, on_connected: callable):
         print("<Connect>")
@@ -187,31 +171,3 @@ class KuzzleIOT(object):
 
     def disconnect(self):
         self.ws.close()
-
-
-if __name__ == '__main__':
-    import time
-
-
-    def a_state_callback(state: dict):
-        print(json.dumps(state, indent=2, sort_keys=True))
-
-
-    def on_connected():
-        print("connected -> sub to state")
-        button.subscribe_state(a_state_callback)
-        button.publish_state({'bb': "coucou"})
-
-
-    button = KuzzleIOT("buttons_" + "00000000c9591b74", "button")
-
-    print("State thread started")
-
-    try:
-        print("Press Ctrl+C to exit...")
-        while 1:
-            time.sleep(3)
-    except (Exception, KeyboardInterrupt) as e:
-        pass
-    finally:
-        button.stop()

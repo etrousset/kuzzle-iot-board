@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import RPi.GPIO as GPIO
-import serial
 import logging
 import coloredlogs
 import sys
@@ -106,9 +105,7 @@ def init(args, config):
 
     log.debug('All KuzzleIoT instances are connected...')
 
-    serial_port = serial.Serial('/dev/serial0', 115200)
-    log.info('Serial port is: %s', 'OPENED' if serial_port.is_open else 'CLOSED')
-    pn532 = Pn532(serial_port, kuzzle_rfid.publish_state)
+    pn532 = Pn532('/dev/serial0', kuzzle_rfid.publish_state)
 
 
 def logs_init():

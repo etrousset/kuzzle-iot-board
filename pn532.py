@@ -4,6 +4,7 @@ from typing import *
 import coloredlogs
 import RPi.GPIO as GPIO
 import sys
+import serial
 
 import time
 
@@ -22,8 +23,10 @@ class Pn532(object):
 
     LOG = logging.getLogger('PN532')
 
-    def __init__(self, serial_port, state_callback):
-        self.serial_port = serial_port
+    def __init__(self, serial_port: str = '/dev/serial0', state_callback: callable = None):
+
+        self.serial_port = serial.Serial(serial_port, 115200)
+        self.LOG.info('Pn532 using serial port is: %s: %s', '[OPENED]' if self.serial_port.is_open else '[CLOSED]')
         self.state_callback = state_callback
 
         coloredlogs.install(logger=Pn532.LOG,
@@ -206,7 +209,6 @@ class Pn532(object):
         self.cancel_command()
         self.sam_configuration()
 
-
         polling_data = [
             0x64,  # PollNr : Number of polling [0x1-0xFE] or 0xFF for endless polling
             0x01,  # Number of 150ms periods
@@ -231,7 +233,8 @@ class Pn532(object):
 
                 if card:
                     self.LOG.info('Card ID: 0x%04x entering field', int.from_bytes(card["NFCID"], byteorder='little'))
-                    self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': True})
+                    if self.state_callback:
+                        self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': True})
                     in_field = True
                 else:
                     in_field = False
@@ -269,7 +272,8 @@ class Pn532(object):
                     if not in_field:
                         self.LOG.info('Card ID: 0x%04x leaving field',
                                       int.from_bytes(card["NFCID"], byteorder='little'))
-                        self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': False})
+                        if self.state_callback:
+                            self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': False})
 
             frame = self._frame(self.CMD_IN_AUTO_POLL, bytes(polling_data))
             self.serial_write(frame)
@@ -281,12 +285,8 @@ class Pn532(object):
 
 
 if __name__ == '__main__':
-    import serial
-
     print("Press <Ctrl>+C to exit program...")
-    serialport = serial.Serial('/dev/serial0', 115200)
-    print("Serial port: %s" % serialport.name)
-    pn532 = Pn532(serialport, print)
+    pn532 = Pn532(state_callback=print)
 
     try:
         v = pn532.version_check()
