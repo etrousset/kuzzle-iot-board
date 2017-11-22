@@ -1,6 +1,4 @@
 import websockets
-import websockets.http as http
-import http.client as httpclient
 import requests
 
 import asyncio

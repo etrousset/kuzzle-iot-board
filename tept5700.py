@@ -1,7 +1,7 @@
 import mcp3208
 
 """
-
+This class handles the TEPT5700 ambient light sensor
 """
 
 

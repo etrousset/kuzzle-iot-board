@@ -8,6 +8,9 @@ import serial
 
 import time
 
+"""
+This class handles the Pn532 NFC module
+"""
 
 class Pn532(object):
     ACK = bytes([0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00])
