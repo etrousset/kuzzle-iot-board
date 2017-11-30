@@ -30,7 +30,7 @@ class Tept5700(object):
 
 if __name__ == '__main__':
     import time
-    tept = Tept5700(5.2, 100000)
+    tept = Tept5700(5.2, 10000)
 
     try:
         while 1:

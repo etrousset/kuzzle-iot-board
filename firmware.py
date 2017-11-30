@@ -165,7 +165,7 @@ def start_sensing_light():
         while 1:
             voltage, lux = tept.read_lux()
             kuzzle_light.publish_state({"level": lux})  # "{:.3f}".format(lux)})
-            time.sleep(0.1)
+            time.sleep(1)
     except KeyboardInterrupt as e:
         pass
 
@@ -210,20 +210,14 @@ def startup(args):
             GPIO.output(GPIO_LED_GREEN, 1)
             motion_sensor_install()
             buttons_install()
-            while 1:
-                if pn532.version_check():
-                    log.info('Found a Pn532 RFID/NFC module, starting card polling...')
-                    pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
-                    pn532_thread.daemon = True
-                    pn532_thread.start()
-                    break
-                else:
-                    log.warning('Unable to get version from Pn532, not using it...')
-                    time.sleep(1)
+
+            pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
+            pn532_thread.daemon = True
+            pn532_thread.start()
 
             light_sensor_thread = threading.Thread(target=start_sensing_light, name="light_sensor")
             light_sensor_thread.daemon = True
-            # light_sensor_thread.start()
+            light_sensor_thread.start()
         else:
             log.warning("Unable to connect to Kuzzle...")
             retry -= 1
@@ -240,7 +234,6 @@ def startup(args):
         print(asyncio.get_event_loop())
         asyncio.get_event_loop().run_forever()
         log.info("Configuration changed, restarting firmware...")
-        config_update_event.clear()
     except KeyboardInterrupt as e:
         pass
     finally:
