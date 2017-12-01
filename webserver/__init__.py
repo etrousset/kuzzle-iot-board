@@ -4,7 +4,10 @@ import urllib.parse as uparse
 import airspeed
 from ruamel.yaml import YAML
 import os
+import subprocess
 import json
+import dbus
+
 config_path = None
 config = None
 
@@ -57,8 +60,15 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
 
 yaml = YAML()
 config_update_event = None
-server_address = ('', 8083)
+server_address = ('', 80)
 httpd = HTTPServer(server_address, AdminHTTPRequestHandler)
+
+
+def restart_firmware():
+    sysbus = dbus.SystemBus()
+    systemd1 = sysbus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
+    manager = dbus.Interface(systemd1, 'org.freedesktop.systemd1.Manager')
+    job = manager.RestartUnit('kuzzle-sensor-firmware.service', 'fail')
 
 
 def apply_config(args):
@@ -70,8 +80,7 @@ def apply_config(args):
     with open(config_path, mode='w') as f:
         yaml.dump(config, f)
 
-
-    #TODO: restart kuzzle-firmware service!!!
+    restart_firmware()
 
 def start_admin_server(device_info, config_path):
     global device
@@ -105,4 +114,3 @@ def load_config():
     with open(config_path) as f:
         config_str = f.read()
     return yaml.load(config_str)
-
