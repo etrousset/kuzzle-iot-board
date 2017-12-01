@@ -28,9 +28,10 @@ class Pn532(object):
 
     def __init__(self, serial_port: str = '/dev/serial0', state_callback: callable = None):
 
-        self.serial_port = serial.Serial(serial_port, 115200)
-        self.LOG.info('Pn532 using serial port is: %s: %s', '[OPENED]' if self.serial_port.is_open else '[CLOSED]')
+        self.serial_port = serial_port
         self.state_callback = state_callback
+
+        self.serial = None
 
         coloredlogs.install(logger=Pn532.LOG,
                             fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -38,12 +39,6 @@ class Pn532(object):
                             stream=sys.stdout)
 
         self.LOG.setLevel(logging.DEBUG)
-        self.serial_write(
-            bytes([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
-        time.sleep(1)
-        self.cancel_command()
-        time.sleep(1)
-        self.sam_configuration()
 
     def cancel_command(self):
         """
@@ -174,7 +169,7 @@ class Pn532(object):
 
     def serial_write(self, frame):
         self.hex_dump(frame, prefix='Write frame')
-        self.serial_port.write(frame)
+        self.serial.write(frame)
 
     def _read_frame(self):
         preamble = self.serial_read()
@@ -201,7 +196,7 @@ class Pn532(object):
         return preamble + startcode + lenght + lcs + tfi + data + dcs + postamble
 
     def serial_read(self, count: int = 1):
-        return self.serial_port.read(count)
+        return self.serial.read(count)
 
     def serial_read_ack(self):
         return self.serial_read(6)
@@ -209,8 +204,21 @@ class Pn532(object):
     def start_polling(self):
         Pn532.LOG.debug("Start polling for RFID cards...")
 
+        self.serial = serial.Serial(self.serial_port, 115200)
+        self.LOG.info('Pn532 using serial port is: %s: %s', self.serial_port, '[OPENED]' if self.serial.is_open else '[CLOSED]')
+
+        self.serial_write(
+            bytes([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+        time.sleep(2)
         self.cancel_command()
+        time.sleep(2)
         self.sam_configuration()
+
+        if self.version_check():
+            self.LOG.info('Found a Pn532 RFID/NFC module, starting card polling...')
+        else:
+            self.LOG.error('No Pn532 RFID/NFC found, exiting NFC/RFID card polling...')
+            return
 
         polling_data = [
             0x64,  # PollNr : Number of polling [0x1-0xFE] or 0xFF for endless polling
