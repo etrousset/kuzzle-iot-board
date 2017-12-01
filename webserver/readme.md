@@ -3,7 +3,7 @@ Administration server
 
 Connection
 ---
-Enter the following URL in a web browser: http://kuzzle-sensor.local:8083
+Enter the following URL in a web browser: http://kuzzle-sensor.local
 
 Admin page
 ---

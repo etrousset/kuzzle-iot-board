@@ -77,7 +77,7 @@ State published in Kuzzle:
 ## Configure
 
 There is a webserver that allow configuring the multi-sensor, for now allow configure the host and port where to find Kuzzle.
-The webserver is accessible through [http://kuzzle-sensor.local:8083](http://kuzzle-sensor.local:8083/)
+The webserver is accessible through [http://kuzzle-sensor.local](http://kuzzle-sensor.local/)
 
 There is also a dashboard that allow visualising the state of the sensor. 
 The dashboard is using Kuzzle JS SDK available here: 
