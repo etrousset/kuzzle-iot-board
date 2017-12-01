@@ -32,6 +32,9 @@ class Pn532(object):
         self.state_callback = state_callback
 
         self.serial = None
+        self.serial = serial.Serial(self.serial_port, 115200)
+        self.LOG.info('Pn532 using serial port is: %s: %s', self.serial_port,
+                      '[OPENED]' if self.serial.is_open else '[CLOSED]')
 
         coloredlogs.install(logger=Pn532.LOG,
                             fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -48,24 +51,19 @@ class Pn532(object):
         self.serial_write(self.ACK)
 
     def version_check(self):
+        fw_version = None
         self.LOG.debug("Get PN532 firmware revision: GetFirmwareVersion")
-        self.serial_write(self._frame(Pn532.CMD_GET_FIRMWARE_VERSION))
+        if self._write_frame(Pn532.CMD_GET_FIRMWARE_VERSION, prefix='getFirmwareVerion'):
 
-        if self._check_ack():
-            self.LOG.debug("GetFirmwareVersion: ACK")
-        else:
-            self.LOG.error("GetFirmwareVersion: NACK")
+            frame = self._read_frame()
 
-        # time.sleep(0.3)
-        frame = self._read_frame()
+            self.LOG.debug('Firmware version recv frame: %s', self.hex_dump('', frame))
+            fw_version = self.parse_firmware_version(frame)
 
-        self.LOG.debug('Firmware version recv frame: %s', self.hex_dump('', frame))
-        fw_version = self.parse_firmware_version(frame)
-
-        if fw_version:
-            self.LOG.info('Found PN53 version: %d.%d', fw_version['Ver'], fw_version['Rev'])
-        else:
-            self.LOG.error('Failed to get version from PN532')
+            if fw_version:
+                self.LOG.info('Found PN53 version: %d.%d', fw_version['Ver'], fw_version['Rev'])
+            else:
+                self.LOG.error('Failed to get version from PN532')
 
         return fw_version
 
@@ -74,30 +72,15 @@ class Pn532(object):
 
     def set_parameters(self, flags: int):
         assert 0x00 <= flags <= 0xFF, "flag is out of range"
-        f = self._frame(self.CMD_SET_PARAMETERS, bytes([flags]))
 
-        self.serial_write(f)
-
-        if self._check_ack():
-            self.LOG.debug('setParameters: ACK')
-        else:
-            self.LOG.debug('setParameters: NACK')
-
-        resp = self._read_frame()
+        if self._write_frame(self.CMD_SET_PARAMETERS, bytes([flags]), prefix='setParameter'):
+            resp = self._read_frame()
 
     def sam_configuration(self):
         self.LOG.info('>SAMConfiguration')
-        f = self._frame(self.CMD_SAM_CONFIGURATION, bytes([0x01, 0x17, 0x00]))
-
-        self.serial_write(f)
-
-        if self._check_ack():
-            self.LOG.debug('SAMConfiguration: ACK')
-        else:
-            self.LOG.debug('SAMConfiguration: NACK')
-
-        resp = self._read_frame()
-        self.LOG.info('<SAMConfiguration')
+        if self._write_frame(self.CMD_SAM_CONFIGURATION, bytes([0x01, 0x17, 0x00]), prefix="SAMConfiguration"):
+            resp = self._read_frame()
+            self.LOG.info('<SAMConfiguration')
 
     @staticmethod
     def hex_dump(b, sep=' ', prefix=None):
@@ -125,8 +108,26 @@ class Pn532(object):
 
         return frame
 
-    def _check_ack(self) -> bool:
+    def _write_frame(self, cmd: int, data: bytes = None, prefix=None):
+        ack = False
+        while not ack:
+            self.serial_write(self._frame(cmd, data))
+            ack = self._check_ack()
+
+            if ack is None:
+                self.LOG.warning("Cmd hasn't been ACKed...resending same cmd")
+            else:
+                if ack:
+                    self.LOG.debug("%s: ACK", prefix)
+                else:
+                    self.LOG.warning("%s: NACK", prefix)
+        return True  # TODO: return False after failling for some time
+
+    def _check_ack(self):
         frame = self.serial_read_ack()
+        if frame is None:
+            return None
+
         if frame == Pn532.ACK:
             return True
         else:
@@ -199,13 +200,13 @@ class Pn532(object):
         return self.serial.read(count)
 
     def serial_read_ack(self):
-        return self.serial_read(6)
+        self.serial.timeout = 0.030
+        f = self.serial_read(6)
+        self.serial.timeout = None
+        return f
 
     def start_polling(self):
         Pn532.LOG.debug("Start polling for RFID cards...")
-
-        self.serial = serial.Serial(self.serial_port, 115200)
-        self.LOG.info('Pn532 using serial port is: %s: %s', self.serial_port, '[OPENED]' if self.serial.is_open else '[CLOSED]')
 
         self.serial_write(
             bytes([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
@@ -228,15 +229,8 @@ class Pn532(object):
 
         in_list_passive_target_data = [0x01, 0x00, ]
 
-        frame = self._frame(Pn532.CMD_IN_AUTO_POLL, bytes(polling_data))
-        self.serial_write(frame)
-
-        if self._check_ack():
-            Pn532.LOG.debug('InAutoPoll - ACK')
-        else:
-            Pn532.LOG.warning('InAutoPoll - NACK')
-
         while 1:
+            self._write_frame(Pn532.CMD_IN_AUTO_POLL, bytes(polling_data), prefix='InAutoPoll')
             frame = self._read_frame()
             if frame:
                 Pn532.LOG.debug(self.hex_dump(frame))
@@ -252,47 +246,26 @@ class Pn532(object):
 
                 while in_field:
 
-                    frame = self._frame(self.CMD_RF_CONFIGURATION, bytes([0x05, 0x00, 0x01, 0x02]))
-                    self.LOG.debug('RfConfiguration: %s', self.hex_dump(frame))
-                    self.serial_write(frame)
+                    if self._write_frame(self.CMD_RF_CONFIGURATION, bytes([0x05, 0x00, 0x01, 0x02]),
+                                         prefix='RfConfiguration'):
+                        frame = self._read_frame()
+                        self.LOG.debug(self.hex_dump(frame))
 
-                    if self._check_ack():
-                        self.LOG.debug('RfConfiguration - ACK OK')
-                    else:
-                        self.LOG.error('RfConfiguration - ACK NOT OK')
+                    if self._write_frame(self.CMD_IN_LIST_PASSIVE_TARGET,
+                                         bytes(in_list_passive_target_data) + card["NFCID"],
+                                         prefix='InListPassive'):
 
-                    frame = self._read_frame()
-                    self.LOG.debug(self.hex_dump(frame))
+                        frame = self._read_frame()
+                        self.LOG.debug(self.hex_dump(frame))
 
-                    frame = self._frame(self.CMD_IN_LIST_PASSIVE_TARGET,
-                                        bytes(in_list_passive_target_data) + card["NFCID"])
-                    self.LOG.debug('InListPassive: %s', self.hex_dump(frame))
-                    self.serial_write(frame)
+                        in_field_cards_count = frame[7]
+                        in_field = in_field_cards_count != 0
 
-                    if self._check_ack():
-                        self.LOG.debug('InListPassive - ACK OK')
-                    else:
-                        self.LOG.debug('InListPassive - ACK NOT OK')
-
-                    frame = self._read_frame()
-                    self.LOG.debug(self.hex_dump(frame))
-
-                    in_field_cards_count = frame[7]
-                    in_field = in_field_cards_count != 0
-
-                    if not in_field:
-                        self.LOG.info('Card ID: 0x%04x leaving field',
-                                      int.from_bytes(card["NFCID"], byteorder='little'))
-                        if self.state_callback:
-                            self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': False})
-
-            frame = self._frame(self.CMD_IN_AUTO_POLL, bytes(polling_data))
-            self.serial_write(frame)
-
-            if self._check_ack():
-                self.LOG.debug('InAutoPoll - ACK OK')
-            else:
-                self.LOG.debug('InAutoPoll - ACK NOT OK')
+                        if not in_field:
+                            self.LOG.info('Card ID: 0x%04x leaving field',
+                                          int.from_bytes(card["NFCID"], byteorder='little'))
+                            if self.state_callback:
+                                self.state_callback({'card_id': self.hex_dump(card["NFCID"], ''), 'in_field': False})
 
 
 if __name__ == '__main__':
