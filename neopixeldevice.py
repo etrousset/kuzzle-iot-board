@@ -18,7 +18,7 @@ LED_COUNT = 8  # Number of LED pixels.
 LED_PIN = 21  # GPIO pin connected to the pixels (21 uses PCM).
 # LED_PIN        = 10      # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
 LED_FREQ_HZ = 800000  # LED signal frequency in hertz (usually 800khz)
-LED_DMA = 5  # DMA channel to use for generating signal (try 5)
+LED_DMA = 0  # DMA channel to use for generating signal (try 5)
 LED_BRIGHTNESS = 255  # Set to 0 for darkest and 255 for brightest
 LED_INVERT = False  # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL = 0  # set to '1' for GPIOs 13, 19, 41, 45 or 53
@@ -29,6 +29,7 @@ LED_STRIP = ws.WS2811_STRIP_GRB  # Strip type and colour ordering
 class LightMode(Enum):
     SINGLE_COLOR = "single-color"
     COLOR_RAMP = "color-ramp"
+    BLINK = "blink"
 
 
 class NeopixelDevice(Adafruit_NeoPixel):
@@ -46,6 +47,7 @@ class NeopixelDevice(Adafruit_NeoPixel):
                             stream=sys.stdout)
 
         self.LOG.setLevel(logging.DEBUG)
+        self.blink_state = 1
 
         self.LOG.info("Neopixel inside")
 
@@ -59,6 +61,32 @@ class NeopixelDevice(Adafruit_NeoPixel):
         }
         self.begin()
 
+    def blink(self):
+        self.LOG.debug('>>>BLINK<<<')
+        self.blink_state = 0 if self.blink_state else 1
+
+        if 'ramp' in self.state:
+            for i, c in enumerate(self.state["ramp"]):
+                # print("{:3d}: {}".format(i, c))
+                self.setPixelColorRGB(i, c[0] * self.blink_state, c[1]* self.blink_state, c[2]* self.blink_state)
+        elif 'color' in self.state:
+            color = self.get_color()
+            self.setPixelColor(i, color * self.blink_state)
+
+        self.show()
+        if LightMode.BLINK.value in self.state['mode']:
+            self.event_loop.call_later(0.1, self.blink)
+
+    def get_color(self):
+        color = self.state["color"]
+
+        if type(color) == str:
+            if str(color).startswith('#'):
+                color = color[1:]
+            color = int(color, 16)
+
+        return color
+
     def __apply_state(self):
 
         self.LOG.debug("Applying new state: %s", json.dumps(self.state, sort_keys=True))
@@ -66,15 +94,7 @@ class NeopixelDevice(Adafruit_NeoPixel):
 
         if self.state['on']:
             if mode == LightMode.SINGLE_COLOR.value:
-                color = self.state["color"]
-
-                if type(color) == str:
-                    if str(color).startswith('#'):
-                        color = color[1:]
-                    color = int(color, 16)
-
-                print("led count", self.led_count, ', color: ', hex(color))
-
+                color = self.get_color()
                 for i in range(0, self.led_count + 1):
                     self.setPixelColor(i, color)
                     # TODO: Handle the case were color is an int or an (r, g, b) tuple
@@ -82,6 +102,11 @@ class NeopixelDevice(Adafruit_NeoPixel):
                 for i, c in enumerate(self.state["ramp"]):
                     # print("{:3d}: {}".format(i, c))
                     self.setPixelColorRGB(i, c[0], c[1], c[2])
+
+            elif mode == LightMode.BLINK.value:
+                self.event_loop.call_later(0.3, self.blink)
+                pass
+
         else:
             for i in range(0, self.led_count + 1):
                 self.setPixelColor(i, 0)
