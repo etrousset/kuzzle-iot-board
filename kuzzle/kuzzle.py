@@ -44,28 +44,28 @@ class KuzzleIOT(object):
 
         coloredlogs.install(logger=KuzzleIOT.LOG,
                             fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                            level=logging.DEBUG,
+                            level=logging.INFO,
                             stream=sys.stdout)
-
-    def server_info(self):
+    @staticmethod
+    def server_info(host='localhost', port='7512'):
         """
         Ping Kuzzle to validate where are able to reach
         """
 
-        url = "http://{}:{}/_serverInfo".format(self.host, self.port)
+        url = "http://{}:{}/_serverInfo".format(host, port)
         try:
             req = requests.get(url=url)
-            res = self.JSON_DEC.decode(req.text)
+            res = json.JSONDecoder().decode(req.text)
             # json.dump(res, sys.stdout, indent=2)
             if res["status"] == 200:
                 return res["result"]
             else:
-                self.LOG.critical('Unable to connect to Kuzzle: http://%s:%s', self.host, self.port)
-                self.LOG.error(res["error"]["message"])
-                self.LOG.error(res["error"]["stack"])
+                KuzzleIOT.LOG.critical('Unable to connect to Kuzzle: http://%s:%s', host, port)
+                KuzzleIOT.LOG.error(res["error"]["message"])
+                KuzzleIOT.LOG.error(res["error"]["stack"])
                 return None
         except Exception as e:
-            self.LOG.critical('Unable to connect to Kuzzle: http://%s:%s', self.host, self.port)
+            KuzzleIOT.LOG.critical('Unable to connect to Kuzzle: http://%s:%s', host, port)
             return None
 
     async def __publish_state_task(self, state, partial):

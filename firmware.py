@@ -73,16 +73,12 @@ def init(args, config):
     global UID
     global neo
 
-    GPIO.setup(GPIO_LED_GREEN, GPIO.OUT)
-    GPIO.output(GPIO_LED_GREEN, 0)
-
     kuzzle_conf = config["kuzzle"]
 
     UID = rpi_get_serial()
     log.info('Getting device base UID: %s', UID)
 
     neo = NeopixelDevice(LED_COUNT, LED_PIN, strip_type=ws_.WS2811_STRIP_GRB)
-    neo.state = default_state
 
     log.info('Connecting to Kuzzle on {}:{}'.format(kuzzle_conf['host'], kuzzle_conf['port']))
     kuzzle_rfid = KuzzleIOT("NFC_" + UID, "RFID_reader", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
@@ -105,6 +101,7 @@ def init(args, config):
 
     log.debug('All KuzzleIoT instances are connected...')
 
+    neo.state = default_state
     pn532 = Pn532('/dev/serial0', kuzzle_rfid.publish_state)
 
 
@@ -185,29 +182,31 @@ def on_sigterm(sig_num, stack_frame):
 
 
 def startup(args):
+    GPIO.setup(GPIO_LED_GREEN, GPIO.OUT)
+    GPIO.output(GPIO_LED_GREEN, 0)
+
     logs_init()
 
     signal.signal(signal.SIGTERM, on_sigterm)
-
-    # config_update_event = args['update_evt']
-    # cmd_args = args['cmd_line']
-
     config = load_config()
-    # init(cmd_args, config)
-    init(None, config)
 
-    retry = 3
+    retry = 50
     while retry:
-        res = kuzzle_motion.server_info()
+        khost = config["kuzzle"]['host']
+        kport = config["kuzzle"]['port']
+        res = KuzzleIOT.server_info(khost, kport)
 
         if res:
             retry = 0
             log.debug('Connected to Kuzzle on http://{}:{}, version = {}'.format(
-                kuzzle_motion.host,
-                kuzzle_motion.port,
+                khost,
+                kport,
                 res["serverInfo"]["kuzzle"]["version"])
             )
+            init(None, config)
             GPIO.output(GPIO_LED_GREEN, 1)
+
+
             motion_sensor_install()
             buttons_install()
 
