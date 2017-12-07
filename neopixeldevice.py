@@ -13,7 +13,7 @@ import coloredlogs
 import asyncio
 
 # LED strip configuration:
-LED_COUNT = 8  # Number of LED pixels.
+LED_COUNT = 60  # Number of LED pixels.
 # LED_PIN        = 18      # GPIO pin connected to the pixels (18 uses PWM!).
 LED_PIN = 21  # GPIO pin connected to the pixels (21 uses PCM).
 # LED_PIN        = 10      # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
@@ -99,10 +99,12 @@ class NeopixelDevice(Adafruit_NeoPixel):
                     self.setPixelColor(i, color)
                     # TODO: Handle the case were color is an int or an (r, g, b) tuple
             elif mode == LightMode.COLOR_RAMP.value:
-                for i, c in enumerate(self.state["ramp"]):
+                ramp = self.state["ramp"]
+                l = len(ramp)
+                for i in range(0, self.led_count):
+                    c =ramp[i % l]
                     # print("{:3d}: {}".format(i, c))
                     self.setPixelColorRGB(i, c[0], c[1], c[2])
-
             elif mode == LightMode.BLINK.value:
                 self.event_loop.call_later(0.3, self.blink)
                 pass
