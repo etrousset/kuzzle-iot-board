@@ -40,7 +40,7 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
 
         elif self.path == "/":
             self.send_response(301)
-            self.send_header("Location", "http://" + self.headers["Host"] + '/admin')
+            self.send_header("Location", "http://" + self.headers["Host"] + '/dashboard')
             self.end_headers()
 
         elif self.path == "/dashboard":
@@ -81,6 +81,7 @@ def apply_config(args):
         yaml.dump(config, f)
 
     restart_firmware()
+
 
 def start_admin_server(device_info, config_path):
     global device
