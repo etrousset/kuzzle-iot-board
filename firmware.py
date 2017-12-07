@@ -102,6 +102,7 @@ def init(args, config):
     log.debug('All KuzzleIoT instances are connected...')
 
     neo.state = default_state
+    neo.publish_state()
     pn532 = Pn532('/dev/serial0', kuzzle_rfid.publish_state)
 
 
@@ -128,10 +129,6 @@ def on_gpio_changed_up(channel):
     on_gpio_changed(channel, GPIO.input(channel))
 
 
-def on_gpio_changed_down(channel):
-    on_gpio_changed(channel, 0)
-
-
 def motion_sensor_install():
     GPIO.setup(GPIO_MOTION_SENSOR, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.add_event_detect(GPIO_MOTION_SENSOR, GPIO.BOTH, callback=on_gpio_changed_up)
@@ -140,7 +137,7 @@ def motion_sensor_install():
 def buttons_install():
     GPIO.setup(GPIO_BUTTONS, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     for gpio in GPIO_BUTTONS:
-        GPIO.add_event_detect(gpio, GPIO.BOTH, callback=on_gpio_changed_up, bouncetime=200)
+        GPIO.add_event_detect(gpio, GPIO.BOTH, callback=on_gpio_changed_up, bouncetime=50)
 
 
 def load_config():
