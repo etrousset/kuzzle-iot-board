@@ -124,6 +124,7 @@ def on_gpio_changed(gpio, level):
 
 
 def on_gpio_changed_up(channel):
+    time.sleep(0.03)  # 30 ms sleep to make sure the GPIO state is stabilized before reading it
     on_gpio_changed(channel, GPIO.input(channel))
 
 
@@ -205,7 +206,6 @@ def startup(args):
             )
             init(None, config)
             GPIO.output(GPIO_LED_GREEN, 1)
-
 
             motion_sensor_install()
             buttons_install()
