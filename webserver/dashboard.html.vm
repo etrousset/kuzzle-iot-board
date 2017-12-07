@@ -363,11 +363,11 @@ input:checked + .slider:before {
                             console
                             .log('motion sensor states: ', state)
 
-                        if (state.motion) 
+                        if (state.motion)
                             document
                                 .getElementById('motion_content')
                                 .className = "badge badge-primary"
-                        else 
+                        else
                             document
                                 .getElementById('motion_content')
                                 .className = "badge badge-secondary"
@@ -388,10 +388,10 @@ input:checked + .slider:before {
                         document.getElementById('light_level')
                             .innerHTML = `<p>${state.level.toFixed(2)}lux</p>`
                         light_history.push([ Date.now() / 1000 - t0, parseFloat(state.level) ])
-                        if (light_history.length > MAX_HISTORY) 
+                        if (light_history.length > MAX_HISTORY)
                             light_history.splice(1, 1)
                         chart_need_draw = true
-                        if (chart_ready) 
+                        if (chart_ready)
                             drawChart()
                     })
                     .onDone((a) => {
@@ -421,38 +421,43 @@ input:checked + .slider:before {
                         partial_state: false
                       }
                     }
-                    ]
+                  ]
               }, {
                 subscribeToSelf: true
               }, (err, res) => {
-              
-              var state = res.document.content.state
-              console.log("RGB light: ", state);
-
-              if(state.on)
-                $('#rgb_light_switch')[0].checked = true
-              else
-                $('#rgb_light_switch')[0].checked = false
-
-              if(state.mode === "single-color") {
-                for(i=0; i< 8; i++)
-                      $("#led_" + i).css("background", state.color)
-              }
-              else if( state.mode === "color-ramp") {
-                console.log($("#led_"))
-                state.ramp.forEach((c, i) => {
-                      $("#led_" + i).css("background", "#" + RGBToHex(c[0], c[1], c[2]))
-               });
-              }
+                var state = res.document.content.state
+                update_rgb_light_display(state)
               })
               .onDone((a) => {
                         console.log("[DONE] Subscribing to RGB light state");
                     })
             }
 
+            function rgb_light_get_state(device) {
+              console.log("Getting current RGB light state");
+              device_state_col .search({
+                query: {
+                  bool : {
+                    must: [
+                      { term : { device_id: 'rgb_light_' + device.uid, } },
+                      { term : { partial_state: false, } }
+                    ]
+                  }
+                },
+                sort: [
+                  {"_kuzzle_info.createdAt" : "desc"}
+                 ]
+                },
+                { size: 1 },
+                (err, res) => {
+                  var state = res.getDocuments()[0].content.state
+                  update_rgb_light_display(state)
+                })
+            }
+
             function on_light_lvl_chat_ready() {
                 chart_ready = true;
-                if (chart_need_draw) 
+                if (chart_need_draw)
                     drawChart()
             }
 
@@ -475,6 +480,26 @@ input:checked + .slider:before {
                 if(err)
                   console.log(err);
               })
+            }
+
+            function update_rgb_light_display(state) {
+              console.log("RGB light: ", state);
+
+              if(state.on)
+                $('#rgb_light_switch')[0].checked = true
+              else
+                $('#rgb_light_switch')[0].checked = false
+
+              if(state.mode === "single-color") {
+                for(i=0; i< 8; i++)
+                      $("#led_" + i).css("background", state.color)
+              }
+              else if( state.mode === "color-ramp") {
+                console.log($("#led_"))
+                state.ramp.forEach((c, i) => {
+                      $("#led_" + i).css("background", "#" + RGBToHex(c[0], c[1], c[2]))
+               })
+             }
             }
 
             function update_rgb_light (e) {
@@ -534,6 +559,7 @@ input:checked + .slider:before {
                         subscribe_to_motion_sensor(device)
                         subscribe_to_light_sensor(device)
                         subscribe_to_rgb_light(device)
+                        rgb_light_get_state(device)
                     }
                 })
             }
