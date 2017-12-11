@@ -30,10 +30,10 @@ class LightMode(Enum):
     SINGLE_COLOR = "single-color"
     COLOR_RAMP = "color-ramp"
     BLINK = "blink"
+    CYCLE = "cycle"
 
 
 class NeopixelDevice(Adafruit_NeoPixel):
-
     LOG = logging.getLogger('Neopixel')
 
     def __init__(self, led_count, led_pin, freq_hz=800000, dma_channel=5, invert=False,
@@ -41,6 +41,7 @@ class NeopixelDevice(Adafruit_NeoPixel):
         super().__init__(led_count, led_pin, freq_hz=freq_hz, dma=dma_channel, invert=invert, brightness=brightness,
                          channel=pwm_channel, strip_type=strip_type)
 
+        self.cycle_offset = 0
         coloredlogs.install(logger=NeopixelDevice.LOG,
                             fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
                             level=logging.DEBUG,
@@ -57,29 +58,67 @@ class NeopixelDevice(Adafruit_NeoPixel):
         self.__state = {
             'on': True,
             'mode': LightMode.COLOR_RAMP.value,
-            'ramp': [(255, 0, 0) for x in range(0, LED_COUNT)]
+            'ramp': [(0, 0, 0) for x in range(0, LED_COUNT)]
         }
         self.begin()
 
+    def set_led_color(self, led_index, color):
+        print(type(color))
+        if type(color) in (tuple, list, dict):
+            self.setPixelColorRGB(led_index, color[0], color[1], color[2])
+        elif isinstance(color, int):
+            self.setPixelColor(led_index, color)
+        elif isinstance(color, str):
+            self.setPixelColor(led_index, self.parse_color(color))
+
     def blink(self):
+        if LightMode.BLINK.value not in self.state['mode'] or not self.state['on']:
+            return
+
         self.LOG.debug('>>>BLINK<<<')
         self.blink_state = 0 if self.blink_state else 1
 
         if 'ramp' in self.state:
             for i, c in enumerate(self.state["ramp"]):
-                # print("{:3d}: {}".format(i, c))
-                self.setPixelColorRGB(i, c[0] * self.blink_state, c[1]* self.blink_state, c[2]* self.blink_state)
+                if self.blink_state:
+                    self.set_led_color(i, c)
+                else:
+                    self.set_led_color(i, 0)
+
         elif 'color' in self.state:
-            color = self.get_color()
-            self.setPixelColor(i, color * self.blink_state)
+            for i in range(0, self.led_count+1):
+                if self.blink_state:
+                    self.set_led_color(i, self.state["color"])
+                else:
+                    self.set_led_color(i, 0)
 
         self.show()
         if LightMode.BLINK.value in self.state['mode']:
             self.event_loop.call_later(0.1, self.blink)
 
-    def get_color(self):
-        color = self.state["color"]
+    def cycle(self):
+        if LightMode.CYCLE.value not in self.state['mode'] or not self.state['on']:
+            return
 
+        self.LOG.debug('>>>Cycle<<<')
+        self.cycle_offset += 1
+
+        if 'ramp' in self.state:
+            print('ramp, cycle_offset ', self.cycle_offset)
+            ramp = self.state["ramp"]
+            print(ramp)
+            l = len(ramp)
+            for i in range(0, self.led_count):
+                c = ramp[(i + self.cycle_offset) % l]
+                self.set_led_color(i, c)
+
+        self.show()
+        if LightMode.CYCLE.value in self.state['mode']:
+            self.event_loop.call_later(0.1, self.cycle)
+
+
+    @staticmethod
+    def parse_color(color: str) -> int:
         if type(color) == str:
             if str(color).startswith('#'):
                 color = color[1:]
@@ -94,24 +133,23 @@ class NeopixelDevice(Adafruit_NeoPixel):
 
         if self.state['on']:
             if mode == LightMode.SINGLE_COLOR.value:
-                color = self.get_color()
+                color = self.state["color"]
                 for i in range(0, self.led_count + 1):
-                    self.setPixelColor(i, color)
-                    # TODO: Handle the case were color is an int or an (r, g, b) tuple
+                    self.set_led_color(i, color)
             elif mode == LightMode.COLOR_RAMP.value:
                 ramp = self.state["ramp"]
                 l = len(ramp)
                 for i in range(0, self.led_count):
-                    c =ramp[i % l]
-                    # print("{:3d}: {}".format(i, c))
-                    self.setPixelColorRGB(i, c[0], c[1], c[2])
+                    c = ramp[i % l]
+                    self.set_led_color(i, c)
             elif mode == LightMode.BLINK.value:
                 self.event_loop.call_later(0.3, self.blink)
-                pass
+            elif mode == LightMode.CYCLE.value:
+                self.event_loop.call_later(0.3, self.cycle)
 
         else:
             for i in range(0, self.led_count + 1):
-                self.setPixelColor(i, 0)
+                self.set_led_color(i, 0)
 
         self.show()
 
