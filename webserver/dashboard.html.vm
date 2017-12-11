@@ -50,7 +50,7 @@
         title: 'Light level history',
         curveType: 'function',
         hAxis: {
-          title: 'Time (sec)',
+          title: 'Time',
           titleTextStyle: {
             color: '#333'
           }
@@ -447,9 +447,9 @@
 
     function on_light_sensor_state(state, date, update_display = false, push=true) {
       if(push)
-        light_history.push([new Date(date/1000), parseFloat(state.level)])
+        light_history.push([new Date(date), parseFloat(state.level)])
       else
-        light_history.splice(1, 0, [new Date(date/1000), parseFloat(state.level)])
+        light_history.splice(1, 0, [new Date(date), parseFloat(state.level)])
 
       if (light_history.length > MAX_HISTORY)
         light_history.splice(1, 1)
