@@ -4,6 +4,7 @@ from typing import *
 import coloredlogs
 import RPi.GPIO as GPIO
 import sys
+import os
 import serial
 import subprocess
 import time
@@ -43,7 +44,7 @@ class Pn532(object):
                             stream=sys.stdout)
 
         self.LOG.setLevel(logging.DEBUG)
-
+        os.environ['LIBNFC_DEVICE'] = 'pn532_uart:/dev/serial0'
         subprocess.run(['nfc-list'])
 
     def cancel_command(self):

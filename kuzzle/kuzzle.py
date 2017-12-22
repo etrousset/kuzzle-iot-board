@@ -1,4 +1,6 @@
+import time
 import websockets
+import websockets.exceptions as wse
 import requests
 
 import asyncio
@@ -13,6 +15,10 @@ class KuzzleIOT(object):
 
     INDEX_IOT = "iot"
     COLLECTION_DEVICE_STATES = "device-state"
+    COLLECTION_DEVICE_INFO = "device-info"
+
+    REQUEST_PUBLISH_DEVICE_INFO = "publish_device_info"
+    REQUEST_GET_DEVICE_INFO = "get_device_info"
 
     PUBLISH_DEVICE_STATE_FMT = """
     { 
@@ -29,12 +35,17 @@ class KuzzleIOT(object):
     JSON_DEC = json.JSONDecoder()
 
     def __init__(self, device_uid, device_type, host='localhost', port='7512',
-                 user='', pwd=''):
+                 user: str = '', pwd: str = '', owner: str = None, friendly_name: str = None, options: dict = None):
         self.event_loop = None
         self.host = host
         self.port = port
         self.user = user
         self.pwd = pwd
+        self.owner = owner
+        self.friendly_name = friendly_name
+        self.options = options
+
+        self.url = "ws://{}:{}".format(self.host, self.port)
 
         self.device_uid = device_uid
         self.device_type = device_type
@@ -44,8 +55,9 @@ class KuzzleIOT(object):
 
         coloredlogs.install(logger=KuzzleIOT.LOG,
                             fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                            level=logging.INFO,
+                            level=logging.DEBUG,
                             stream=sys.stdout)
+
     @staticmethod
     def server_info(host='localhost', port='7512'):
         """
@@ -68,6 +80,48 @@ class KuzzleIOT(object):
             KuzzleIOT.LOG.critical('Unable to connect to Kuzzle: http://%s:%s', host, port)
             return None
 
+    def get_device_info(self):
+        body = {
+            'ids': [self.device_uid]
+        }
+
+        query = {
+            "index": KuzzleIOT.INDEX_IOT,
+            "collection": KuzzleIOT.COLLECTION_DEVICE_INFO,
+            "requestId": KuzzleIOT.REQUEST_GET_DEVICE_INFO,
+            "controller": "document",
+            "action": "mGet",
+            "body": body
+        }
+        self.post_query(query)
+
+    def publish_device_info(self):
+        body = {
+            "documents": [
+                {
+                    "_id": self.device_uid,
+                    "body": {
+                        'device_id': self.device_uid,
+                        'owner': self.owner,
+                        'friendly_name': self.friendly_name,
+                        'device_type': self.device_type,
+                        'options': self.options,
+                    }
+                }
+            ]
+        }
+
+        query = {
+            "index": KuzzleIOT.INDEX_IOT,
+            "collection": KuzzleIOT.COLLECTION_DEVICE_INFO,
+            "requestId": KuzzleIOT.REQUEST_PUBLISH_DEVICE_INFO,
+            "controller": "document",
+            "action": "mCreateOrReplace",
+            "body": body
+        }
+
+        self.post_query(query)
+
     async def __publish_state_task(self, state, partial):
         body = {
             "device_id": self.device_uid,
@@ -84,7 +138,10 @@ class KuzzleIOT(object):
             "action": "create",
             "body": body
         }
-        await self.ws.send(json.dumps(req))
+        try:
+            await self.ws.send(json.dumps(req))
+        except Exception as e:
+            self.LOG.error('__publish_state_task: ws except: %s', str(e))
 
     async def __subscribe_state_task(self, on_state_changed: callable):
         self.on_state_changed = on_state_changed
@@ -99,23 +156,27 @@ class KuzzleIOT(object):
                 }
             }
         }
-        await self.ws.send(json.dumps(subscribe_msg))
+        try:
+            await self.ws.send(json.dumps(subscribe_msg))
+        except Exception as e:
+            self.LOG.error('__publish_state_task: ws except: %s', str(e))
 
     async def __connect_task(self, on_connected: callable):
-        url = "ws://{}:{}".format(self.host, self.port)
-        self.LOG.debug("<Connecting.... url = %s>", url)
+        self.LOG.debug("<Connecting.... url = %s>", self.url)
         try:
-            self.ws = await websockets.connect(url)
+            self.ws = await websockets.connect(self.url)
         except Exception as e:
             self.LOG.critical(e)
             return
 
-        self.LOG.info("<Connected to %s>", url)
+        self.LOG.info("<Connected to %s>", self.url)
 
         self.on_connected = on_connected
 
         if self.on_connected:
             self.on_connected(self)
+
+        self.get_device_info()
 
         self.event_loop.run_in_executor(None, self.__run_loop_start)
 
@@ -125,10 +186,32 @@ class KuzzleIOT(object):
     def __run_loop_start(self):
         self.event_loop.create_task(self.__run_loop_task())
 
+    def on_device_info_resp(self, resp):
+        self.LOG.debug("device info result")
+        if not resp['result']['hits'][0]["found"] or not resp['result']['hits'][0]["_meta"]["active"]:
+            self.publish_device_info()
+
     async def __run_loop_task(self):
         while 1:
             self.LOG.debug("<<Waiting for data from Kuzzle...>>")
-            resp = await self.ws.recv()
+            try:
+                resp = await self.ws.recv()
+            except wse.ConnectionClosed as e:
+                self.LOG.error('__publish_state_task: ws disconnection: %s', str(e))
+                self.LOG.info('reconnecting in 5s...')
+                time.sleep(5)
+
+                try:
+                    self.ws = await websockets.connect(self.url)
+                    self.LOG.debug('Re subscribing to own state...')
+                    self.subscribe_state(self.on_state_changed)
+                except Exception as e:
+                    self.LOG.critical(e)
+
+                continue
+            except Exception as e:
+                self.LOG.error('__publish_state_task: ws except: %s', str(e))
+
             self.LOG.debug("<<Received data from Kuzzle...>>")
             resp = json.loads(resp)
             # print(json.dumps(resp, indent=2, sort_keys=True))
@@ -141,8 +224,10 @@ class KuzzleIOT(object):
                 "requestId"] != "publish_" + self.device_uid:
                 source = resp["result"]["_source"]
 
-                is_partial = source["is_partial"] if "state_partial"  in source else False
+                is_partial = source["is_partial"] if "state_partial" in source else False
                 self.on_state_changed(source["state"], is_partial)
+            elif resp['requestId'] == KuzzleIOT.REQUEST_GET_DEVICE_INFO:
+                self.on_device_info_resp(resp)
 
     def __subscribe_state(self, on_state_changed: callable):
         self.LOG.debug("Adding task to subscribe to state change")
@@ -155,6 +240,19 @@ class KuzzleIOT(object):
     def __publish_state(self, state, partial):
         self.LOG.debug("Adding task to publish state")
         return self.event_loop.create_task(self.__publish_state_task(state, partial))
+
+    async def __post_query_task(self, query: dict, cb: callable = None):
+        await self.ws.send(json.dumps(query))
+        if cb:
+            cb()
+
+    def __post_query(self, query: dict, cb: callable = None):
+        self.LOG.debug("Adding task to post a query")
+        return self.event_loop.create_task(self.__post_query_task(query, cb))
+
+    def post_query(self, query: dict, cb: callable = None):
+        self.LOG.debug("<<Adding task to post a query>>")
+        return self.event_loop.run_in_executor(None, self.__post_query, query, cb)
 
     def publish_state(self, state, partial=False):
         self.LOG.debug("<<Adding task to publish state>>")

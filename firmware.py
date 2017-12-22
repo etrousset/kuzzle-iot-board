@@ -78,16 +78,50 @@ def init(args, config):
     UID = rpi_get_serial()
     log.info('Getting device base UID: %s', UID)
 
-    neo = NeopixelDevice(LED_COUNT, LED_PIN, strip_type=ws_.WS2811_STRIP_GRB)
+    neo = NeopixelDevice(config['device']['rgb_light']['led_count'], LED_PIN, strip_type=ws_.WS2811_STRIP_GRB)
 
     log.info('Connecting to Kuzzle on {}:{}'.format(kuzzle_conf['host'], kuzzle_conf['port']))
-    kuzzle_rfid = KuzzleIOT("NFC_" + UID, "RFID_reader", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
-    kuzzle_motion = KuzzleIOT("motion_" + UID, "motion-sensor", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
-    kuzzle_buttons = KuzzleIOT("buttons_{}".format(UID), "button", host=kuzzle_conf['host'], port=kuzzle_conf['port'])
-    kuzzle_light = KuzzleIOT("light_lvl_{}".format(UID), "light_sensor", host=kuzzle_conf['host'],
-                             port=kuzzle_conf['port'])
-    kuzzle_neo = KuzzleIOT('rgb_light_{}'.format(UID), 'Neopixel_8-linear', host=kuzzle_conf['host'],
-                           port=kuzzle_conf['port'])
+
+    kuzzle_rfid = KuzzleIOT(
+        "NFC_" + UID,
+        "RFID_reader",
+        host=kuzzle_conf['host'],
+        port=kuzzle_conf['port'],
+        owner=config["device"]["owner"]
+    )
+
+    kuzzle_motion = KuzzleIOT(
+        "motion_" + UID,
+        "motion-sensor",
+        host=kuzzle_conf['host'],
+        port=kuzzle_conf['port'],
+        owner=config["device"]["owner"]
+    )
+
+    kuzzle_buttons = KuzzleIOT(
+        "buttons_{}".format(UID),
+        "button",
+        host=kuzzle_conf['host'],
+        port=kuzzle_conf['port'],
+        owner=config["device"]["owner"]
+    )
+
+    kuzzle_light = KuzzleIOT(
+        "light_lvl_{}".format(UID),
+        "light_sensor",
+        host=kuzzle_conf['host'],
+        port=kuzzle_conf['port'],
+        owner=config["device"]["owner"],
+    )
+
+    kuzzle_neo = KuzzleIOT(
+        'rgb_light_{}'.format(UID),
+        'neopixel-linear',
+        host=kuzzle_conf['host'],
+        port=kuzzle_conf['port'],
+        owner=config["device"]["owner"],
+        options={'led_count': config['device']['rgb_light']['led_count']}
+    )
 
     asyncio.get_event_loop().run_until_complete(
         asyncio.gather(
