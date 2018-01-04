@@ -13,6 +13,9 @@ config = None
 
 
 class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def do_POST(self):
         if self.path == '/setup':
             content_length = int(self.headers['Content-Length'])
@@ -54,6 +57,31 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
             self.end_headers()
 
             self.wfile.write(bytes(body, 'utf-8'))
+        elif self.path == "/logs":
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-type", "text/plain")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+
+            with subprocess.Popen(
+                    ['journalctl', '-u', 'kuzzle-sensor-firmware', '-f', '-n', '100'],
+                    stdout=subprocess.PIPE,
+                    universal_newlines=True
+            ) as p:
+
+                try:
+                    l = p.stdout.readline()
+                    while l:
+                        nbchar = '%X' % len(l)
+                        self.wfile.write(bytes(nbchar + '\r\n', 'utf-8'))
+                        self.wfile.write(bytes(l + '\r\n', 'utf-8'))
+                        l = p.stdout.readline()
+
+                    self.wfile.write(bytes('0\r\n', 'utf-8'))
+                    self.wfile.write(bytes('\r\n', 'utf-8'))
+                except BrokenPipeError as e:
+                    print('connection closed by client...')
+
         else:
             super().do_GET()
 
@@ -61,6 +89,7 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
 yaml = YAML()
 config_update_event = None
 server_address = ('', 80)
+AdminHTTPRequestHandler.protocol_version = 'HTTP/1.1'
 httpd = HTTPServer(server_address, AdminHTTPRequestHandler)
 
 
