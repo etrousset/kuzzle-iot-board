@@ -81,7 +81,16 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
                     self.wfile.write(bytes('\r\n', 'utf-8'))
                 except BrokenPipeError as e:
                     print('connection closed by client...')
+        elif self.path == "/reboot":
+            content = bytes('<html><body><H1>Device rebooting...</H1></HTML></BODY>', 'utf-8')
+            l = len(content)
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-type", "text/html")
+            self.send_header("Content-length", "{}".format(l))
+            self.end_headers()
+            self.wfile.write(content)
 
+            subprocess.Popen(['reboot'], stdout=subprocess.PIPE, universal_newlines=True)
         else:
             super().do_GET()
 
