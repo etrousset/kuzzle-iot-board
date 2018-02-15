@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+
 import signal
 
 import RPi.GPIO as GPIO
@@ -10,7 +11,7 @@ import ruamel.yaml as YAML
 import time
 import threading
 import asyncio
-from neopixeldevice import NeopixelDevice, LED_COUNT, LED_PIN, LightMode, ws as ws_
+from neopixeldevice import NeopixelDevice, LED_PIN, LightMode, ws as ws_
 
 from utils import *
 from pn532 import Pn532
@@ -25,11 +26,8 @@ GPIO_LED_GREEN = 20
 log = logging.getLogger('MAIN')
 
 UID = None
-kuzzle_rfid = None
-kuzzle_motion = None
-kuzzle_buttons = None
-kuzzle_light = None
-kuzzle_neo = None
+
+devices = {}
 
 pn532 = None
 
@@ -63,11 +61,7 @@ buttons = {
 
 
 def init(args, config):
-    global kuzzle_motion
-    global kuzzle_buttons
-    global kuzzle_rfid
-    global kuzzle_light
-    global kuzzle_neo
+    global devices
     global pn532
     global pi
     global UID
@@ -82,7 +76,7 @@ def init(args, config):
 
     log.info('Connecting to Kuzzle on {}:{}'.format(kuzzle_conf['host'], kuzzle_conf['port']))
 
-    kuzzle_rfid = KuzzleIOT(
+    devices["kuzzle_rfid"] = KuzzleIOT(
         "NFC_" + UID,
         "RFID_reader",
         host=kuzzle_conf['host'],
@@ -90,7 +84,7 @@ def init(args, config):
         owner=config["device"]["owner"]
     )
 
-    kuzzle_motion = KuzzleIOT(
+    devices["kuzzle_motion"] = KuzzleIOT(
         "motion_" + UID,
         "motion-sensor",
         host=kuzzle_conf['host'],
@@ -98,7 +92,7 @@ def init(args, config):
         owner=config["device"]["owner"]
     )
 
-    kuzzle_buttons = KuzzleIOT(
+    devices["kuzzle_buttons"] = KuzzleIOT(
         "buttons_{}".format(UID),
         "button",
         host=kuzzle_conf['host'],
@@ -106,7 +100,7 @@ def init(args, config):
         owner=config["device"]["owner"]
     )
 
-    kuzzle_light = KuzzleIOT(
+    devices["kuzzle_light"] = KuzzleIOT(
         "light_lvl_{}".format(UID),
         "light_sensor",
         host=kuzzle_conf['host'],
@@ -114,22 +108,41 @@ def init(args, config):
         owner=config["device"]["owner"],
     )
 
-    kuzzle_neo = KuzzleIOT(
+    devices["kuzzle_neo"] = KuzzleIOT(
         'rgb_light_{}'.format(UID),
         'neopixel-linear',
         host=kuzzle_conf['host'],
         port=kuzzle_conf['port'],
         owner=config["device"]["owner"],
-        options={'led_count': config['device']['rgb_light']['led_count']}
+        additional_info={'led_count': config['device']['rgb_light']['led_count']}
     )
 
     asyncio.get_event_loop().run_until_complete(
         asyncio.gather(
-            kuzzle_buttons.connect(None),
-            kuzzle_light.connect(None),
-            kuzzle_motion.connect(None),
-            kuzzle_rfid.connect(None),
-            kuzzle_neo.connect(neo.on_kuzzle_connected),
+            devices["kuzzle_buttons"].connect(None),
+            devices["kuzzle_light"].connect(None),
+            devices["kuzzle_motion"].connect(None),
+            devices["kuzzle_rfid"].connect(None),
+            devices["kuzzle_neo"].connect(neo.on_kuzzle_connected),
+        )
+    )
+
+    attached_devices = []
+    for d in devices:
+        attached_devices.append(devices[d].device_uid)
+
+    board = KuzzleIOT(
+        UID,
+        "iot-board-2018",
+        host=kuzzle_conf['host'],
+        port=kuzzle_conf['port'],
+        owner=config["device"]["owner"],
+        additional_info={"devices": attached_devices}
+    )
+
+    asyncio.get_event_loop().run_until_complete(
+        asyncio.gather(
+            board.connect(None),
         )
     )
 
@@ -137,7 +150,7 @@ def init(args, config):
 
     neo.state = default_state
     neo.publish_state()
-    pn532 = Pn532('/dev/serial0', kuzzle_rfid.publish_state)
+    pn532 = Pn532('/dev/serial0', devices["kuzzle_rfid"].publish_state)
 
 
 def logs_init():
@@ -150,10 +163,10 @@ def on_gpio_changed(gpio, level):
     if gpio in GPIO_BUTTONS:
         buttons['button_{}'.format(GPIO_BUTTONS.index(gpio))] = 'PRESSED' if not level else 'RELEASED'
         log.debug('Buttons state: %s', buttons)
-        kuzzle_buttons.publish_state(buttons)
+        devices["kuzzle_buttons"].publish_state(buttons)
     elif gpio == GPIO_MOTION_SENSOR:
         log.debug('Motion: %s', 'True' if level else 'False')
-        kuzzle_motion.publish_state({'motion': True if level else False})
+        devices["kuzzle_motion"].publish_state({'motion': True if level else False})
     else:
         log.warning('Unexpected GPIO: %d', gpio)
 
@@ -193,7 +206,7 @@ def start_sensing_light():
     try:
         while 1:
             voltage, lux = tept.read_lux()
-            kuzzle_light.publish_state({"level": lux})  # "{:.3f}".format(lux)})
+            ["kuzzle_light"].publish_state({"level": lux})  # "{:.3f}".format(lux)})
             time.sleep(1)
     except KeyboardInterrupt as e:
         pass
