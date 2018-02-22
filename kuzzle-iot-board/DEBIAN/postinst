@@ -1,2 +1,5 @@
 #!/bin/bash
-sudo pip3 install spidev pyserial rpi-ws281x RPi.GPIO ruamel.yaml websockets requests  coloredlogs  airspeed
+pip3 install spidev pyserial rpi-ws281x RPi.GPIO ruamel.yaml websockets requests  coloredlogs  airspeed
+cp *.service /etc/systemd/system/
+systemctl enable  kuzzle-sensor-webserver.service kuzzle-sensor-firmware.service
+
