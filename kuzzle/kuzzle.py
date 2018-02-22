@@ -44,7 +44,7 @@ class KuzzleIOT(object):
         self.on_state_changed = None
 
         coloredlogs.install(logger=KuzzleIOT.LOG,
-                            fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            fmt='[%(thread)X] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
                             level=logging.DEBUG,
                             stream=sys.stdout)
 
@@ -158,7 +158,7 @@ class KuzzleIOT(object):
 
         self.get_device_info()
 
-        self.event_loop.run_in_executor(None, self.__run_loop_start)
+        self.__run_loop_start()
 
     def __connect(self, on_connected: callable):
         return self.event_loop.create_task(self.__connect_task(on_connected))
@@ -175,7 +175,7 @@ class KuzzleIOT(object):
         while 1:
             self.LOG.debug("<<Waiting for data from Kuzzle...>>")
             try:
-                resp = await self.ws.recv()
+                resp = await asyncio.wait_for(self.ws.recv(), timeout=60)
             except wse.ConnectionClosed as e:
                 self.LOG.error('__publish_state_task: ws disconnection: %s', str(e))
                 self.LOG.info('reconnecting in 5s...')
@@ -187,7 +187,16 @@ class KuzzleIOT(object):
                     self.subscribe_state(self.on_state_changed)
                 except Exception as e:
                     self.LOG.critical(e)
-
+                continue
+            except asyncio.TimeoutError:
+                try:
+                    self.LOG.info("PING Kuzzle")
+                    pong_waiter = await self.ws.ping()
+                    await asyncio.wait_for(pong_waiter, timeout=10)
+                    self.LOG.info("PONG Kuzzle")
+                except asyncio.TimeoutError:
+                    self.LOG.critical("No PONG from Kuzzle")
+                    break
                 continue
             except Exception as e:
                 self.LOG.error('__publish_state_task: ws except: %s', str(e))
@@ -208,34 +217,24 @@ class KuzzleIOT(object):
             elif resp['requestId'] == KuzzleIOT.REQUEST_GET_DEVICE_INFO:
                 self.on_device_info_resp(resp)
 
-    def __subscribe_state(self, on_state_changed: callable):
-        self.LOG.debug("Adding task to subscribe to state change")
-        return self.event_loop.create_task(self.__subscribe_state_task(on_state_changed))
-
     def subscribe_state(self, on_state_changed: callable):
         self.LOG.debug("<<Adding task to subscribe state>>")
-        return self.event_loop.run_in_executor(None, self.__subscribe_state, on_state_changed)
-
-    def __publish_state(self, state, partial):
-        self.LOG.debug("Adding task to publish state")
-        return self.event_loop.create_task(self.__publish_state_task(state, partial))
+        return self.event_loop.create_task(self.__subscribe_state_task(on_state_changed))
 
     async def __post_query_task(self, query: dict, cb: callable = None):
+        self.LOG.debug("Posting query")
         await self.ws.send(json.dumps(query))
         if cb:
             cb()
-
-    def __post_query(self, query: dict, cb: callable = None):
-        self.LOG.debug("Adding task to post a query")
-        return self.event_loop.create_task(self.__post_query_task(query, cb))
+        self.LOG.debug("Query posted")
 
     def post_query(self, query: dict, cb: callable = None):
         self.LOG.debug("<<Adding task to post a query>>")
-        return self.event_loop.run_in_executor(None, self.__post_query, query, cb)
+        return self.event_loop.create_task(self.__post_query_task(query, cb))
 
     def publish_state(self, state, partial=False):
         self.LOG.debug("<<Adding task to publish state>>")
-        return self.event_loop.run_in_executor(None, self.__publish_state, state, partial)
+        return self.event_loop.create_task(self.__publish_state_task(state, partial))
 
     def connect(self, on_connected: callable):
         print("<Connect>")
