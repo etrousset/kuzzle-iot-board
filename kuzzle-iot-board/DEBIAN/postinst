@@ -1,0 +1,2 @@
+#!/bin/bash
+sudo pip3 install spidev pyserial rpi-ws281x RPi.GPIO ruamel.yaml websockets requests  coloredlogs  airspeed

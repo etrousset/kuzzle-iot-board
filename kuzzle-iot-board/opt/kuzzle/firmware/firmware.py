@@ -6,7 +6,6 @@ import RPi.GPIO as GPIO
 import logging
 import coloredlogs
 import sys
-import argparse
 import ruamel.yaml as YAML
 import time
 import threading

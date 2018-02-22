@@ -1,0 +1,6 @@
+Package: kuzzle-iot-board
+Version: 1.1
+Maintainer: Eric Trousset
+Architecture: all
+Description: The firmware for the Kuzzle IoT demo board
+Depends: libnfc-bin ,git, python3-pip
