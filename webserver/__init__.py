@@ -98,7 +98,7 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
 yaml = YAML()
 config_update_event = None
 server_address = ('', 80)
-AdminHTTPRequestHandler.protocol_version = 'HTTP/1.1'
+# AdminHTTPRequestHandler.protocol_version = 'HTTP/1.1'
 httpd = HTTPServer(server_address, AdminHTTPRequestHandler)
 
 
