@@ -2,3 +2,5 @@ systemctl stop kuzzle-sensor-firmware.service
 systemctl stop kuzzle-sensor-webserver.service
 systemctl disable  kuzzle-sensor-webserver.service kuzzle-sensor-firmware.service
 find /opt/kuzzle -name "*.pyc" -exec rm -f {} \;
+find /opt/kuzzle -name "__pycache__" -delete
+
