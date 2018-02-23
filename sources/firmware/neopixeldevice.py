@@ -43,7 +43,7 @@ class NeopixelDevice(Adafruit_NeoPixel):
 
         self.cycle_offset = 0
         coloredlogs.install(logger=NeopixelDevice.LOG,
-                            fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            fmt='[%(thread)X] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
                             level=logging.DEBUG,
                             stream=sys.stdout)
 

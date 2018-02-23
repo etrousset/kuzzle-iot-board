@@ -159,7 +159,8 @@ def init(args, config):
 
 
 def logs_init():
-    coloredlogs.install(logger=log, fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    coloredlogs.install(logger=log,
+                        fmt='[%(thread)X] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
                         level=logging.DEBUG,
                         stream=sys.stdout)
 

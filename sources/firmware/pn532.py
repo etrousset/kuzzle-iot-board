@@ -2,7 +2,6 @@ import logging
 from typing import *
 
 import coloredlogs
-import RPi.GPIO as GPIO
 import sys
 import os
 import serial
@@ -39,7 +38,7 @@ class Pn532(object):
                       '[OPENED]' if self.serial.is_open else '[CLOSED]')
 
         coloredlogs.install(logger=Pn532.LOG,
-                            fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            fmt='[%(thread)X] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
                             level=logging.DEBUG,
                             stream=sys.stdout)
 
