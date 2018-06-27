@@ -10,7 +10,7 @@ class Tept5700(object):
     m = 1.0
     k = 1.3333333333333333
 
-    def __init__(self, v_ce, rl):
+    def __init__(self, v_ce, rl, mcp_channel = 0):
         """
 
         :param v_ce: Tept57000 alimentation tension
@@ -19,9 +19,10 @@ class Tept5700(object):
         self.mcp3208 = mcp3208.MCP3208(5.2, 0, 0)
         self.v_ce = v_ce
         self.rl = rl
+        self.mcp_channel = mcp_channel
 
     def read_lux(self):
-        voltage = self.mcp3208.read_channel(mcp3208.MCP3208.SINGLE, 7)
+        voltage = self.mcp3208.read_channel(mcp3208.MCP3208.SINGLE, self.mcp_channel)
         i_ua = voltage / self.rl * 1000000.0
         lux = self.k * pow(i_ua, self.m)
 

@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 
-
 import signal
 import RPi.GPIO as GPIO
 import logging
@@ -19,14 +18,15 @@ from neopixeldevice import NeopixelDevice, LED_PIN, LightMode, ws as ws_
 from utils import *
 from pn532 import Pn532
 from kuzzle.kuzzle import KuzzleIOT
+import namedtupled
 
 yaml = YAML.YAML()
+config = None
 
-GPIO_MOTION_SENSOR = 5
-GPIO_BUTTONS = [6, 13, 19, 26]
-GPIO_LED_GREEN = 20
+# GPIO_MOTION_SENSOR = 5
+# GPIO_BUTTONS = [6, 13, 19, 26]
 
-CONFIG_PATH='../config/config.yaml'
+CONFIG_PATH = '../config/config.yaml'
 
 log = logging.getLogger('MAIN')
 
@@ -72,64 +72,64 @@ def init(args, config):
     global UID
     global neo
 
-    kuzzle_conf = config["kuzzle"]
+    kuzzle_cfg = config.kuzzle
+    dev_conn = ()
 
     UID = rpi_get_serial()
     log.info('Getting device base UID: %s', UID)
+    log.info('Connecting to Kuzzle on {}:{}'.format(kuzzle_cfg.host, kuzzle_cfg.port))
 
-    neo = NeopixelDevice(config['device']['rgb_light']['led_count'], LED_PIN, strip_type=ws_.WS2811_STRIP_GRB)
-
-    log.info('Connecting to Kuzzle on {}:{}'.format(kuzzle_conf['host'], kuzzle_conf['port']))
+    neo = NeopixelDevice(config.device.rgb_light.led_count, LED_PIN, strip_type=ws_.WS2811_STRIP_GRB)
+    devices["kuzzle_neo"] = KuzzleIOT(
+        'rgb_light_{}'.format(UID),
+        'neopixel-linear',
+        host=kuzzle_cfg.host,
+        port=kuzzle_cfg.port,
+        owner=config.device.owner,
+        additional_info={'led_count': config.device.rgb_light.led_count}
+    )
+    dev_conn += (devices["kuzzle_neo"].connect(neo.on_kuzzle_connected),)
 
     devices["kuzzle_rfid"] = KuzzleIOT(
         "NFC_" + UID,
         "RFID_reader",
-        host=kuzzle_conf['host'],
-        port=kuzzle_conf['port'],
-        owner=config["device"]["owner"]
+        host=kuzzle_cfg.host,
+        port=kuzzle_cfg.port,
+        owner=config.device.owner
     )
+    dev_conn += (devices["kuzzle_rfid"].connect(None),)
 
-    devices["kuzzle_motion"] = KuzzleIOT(
-        "motion_" + UID,
-        "motion-sensor",
-        host=kuzzle_conf['host'],
-        port=kuzzle_conf['port'],
-        owner=config["device"]["owner"]
-    )
+    if config.device.motion_sensor.enabled:
+        devices["kuzzle_motion"] = KuzzleIOT(
+            "motion_" + UID,
+            "motion-sensor",
+            host=kuzzle_cfg.host,
+            port=kuzzle_cfg.port,
+            owner=config.device.owner
+        )
+        dev_conn += (devices["kuzzle_motion"].connect(None),)
 
-    devices["kuzzle_buttons"] = KuzzleIOT(
-        "buttons_{}".format(UID),
-        "button",
-        host=kuzzle_conf['host'],
-        port=kuzzle_conf['port'],
-        owner=config["device"]["owner"]
-    )
+    if config.device.buttons.enabled:
+        devices["kuzzle_buttons"] = KuzzleIOT(
+            "buttons_{}".format(UID),
+            "button",
+            host=kuzzle_cfg.host,
+            port=kuzzle_cfg.port,
+            owner=config.device.owner
+        )
+        dev_conn += (devices["kuzzle_buttons"].connect(None),)
 
     devices["kuzzle_light"] = KuzzleIOT(
         "light_lvl_{}".format(UID),
         "light_sensor",
-        host=kuzzle_conf['host'],
-        port=kuzzle_conf['port'],
-        owner=config["device"]["owner"],
+        host=kuzzle_cfg.host,
+        port=kuzzle_cfg.port,
+        owner=config.device.owner
     )
-
-    devices["kuzzle_neo"] = KuzzleIOT(
-        'rgb_light_{}'.format(UID),
-        'neopixel-linear',
-        host=kuzzle_conf['host'],
-        port=kuzzle_conf['port'],
-        owner=config["device"]["owner"],
-        additional_info={'led_count': config['device']['rgb_light']['led_count']}
-    )
+    dev_conn += (devices["kuzzle_light"].connect(None),)
 
     asyncio.get_event_loop().run_until_complete(
-        asyncio.gather(
-            devices["kuzzle_buttons"].connect(None),
-            devices["kuzzle_light"].connect(None),
-            devices["kuzzle_motion"].connect(None),
-            devices["kuzzle_rfid"].connect(None),
-            devices["kuzzle_neo"].connect(neo.on_kuzzle_connected),
-        )
+        asyncio.gather(*dev_conn)
     )
 
     attached_devices = []
@@ -139,9 +139,9 @@ def init(args, config):
     board = KuzzleIOT(
         UID,
         "iot-board-2018",
-        host=kuzzle_conf['host'],
-        port=kuzzle_conf['port'],
-        owner=config["device"]["owner"],
+        host=kuzzle_cfg.host,
+        port=kuzzle_cfg.port,
+        owner=config.device.owner,
         additional_info={"devices": attached_devices}
     )
 
@@ -166,11 +166,11 @@ def logs_init():
 
 
 def on_gpio_changed(gpio, level):
-    if gpio in GPIO_BUTTONS:
-        buttons['button_{}'.format(GPIO_BUTTONS.index(gpio))] = 'PRESSED' if not level else 'RELEASED'
+    if gpio in config.device.buttons.gpios:
+        buttons['button_{}'.format(config.device.buttons.gpios.index(gpio))] = 'PRESSED' if not level else 'RELEASED'
         log.debug('Buttons state: %s', buttons)
         devices["kuzzle_buttons"].publish_state(buttons)
-    elif gpio == GPIO_MOTION_SENSOR:
+    elif gpio == config.device.motion_sensor.gpio:
         log.debug('Motion: %s', 'True' if level else 'False')
         devices["kuzzle_motion"].publish_state({'motion': True if level else False})
     else:
@@ -183,24 +183,25 @@ def on_gpio_changed_up(channel):
 
 
 def motion_sensor_install():
-    GPIO.setup(GPIO_MOTION_SENSOR, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.add_event_detect(GPIO_MOTION_SENSOR, GPIO.BOTH, callback=on_gpio_changed_up)
+    GPIO.setup(config.device.motion_sensor.gpio, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(config.device.motion_sensor.gpio, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.add_event_detect(config.device.motion_sensor.gpio, GPIO.BOTH, callback=on_gpio_changed_up)
 
 
 def buttons_install():
-    GPIO.setup(GPIO_BUTTONS, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    for gpio in GPIO_BUTTONS:
+    GPIO.setup(config.device.buttons.gpios, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    for gpio in config.device.buttons.gpios:
         GPIO.add_event_detect(gpio, GPIO.BOTH, callback=on_gpio_changed_up, bouncetime=50)
 
 
 def load_config():
     with open(CONFIG_PATH) as f:
         content = f.read()
-    return yaml.load(content)
+    return namedtupled.map(yaml.load(content))
 
 
 def cleanup():
-    GPIO.output(GPIO_LED_GREEN, 0)
+    GPIO.output(config.device.connection_led.gpio, 0)
     GPIO.cleanup()
 
 
@@ -208,7 +209,7 @@ def start_sensing_light():
     log.info("Starting light level sensing thread")
     import tept5700
 
-    tept = tept5700.Tept5700(5.2, 10000)
+    tept = tept5700.Tept5700(5.2, 10000, mcp_channel=config.device.light_sensor.mcp_channel)
     try:
         while 1:
             voltage, lux = tept.read_lux()
@@ -220,31 +221,39 @@ def start_sensing_light():
 
 def on_sigterm(sig_num, stack_frame):
     print("I'm dying!!!")
-    GPIO.output(GPIO_LED_GREEN, 0)
+    GPIO.output(config.device.connection_led.gpio, 0)
     time.sleep(0.25)
-    GPIO.output(GPIO_LED_GREEN, 1)
+    GPIO.output(config.device.connection_led.gpio, 1)
     time.sleep(0.25)
-    GPIO.output(GPIO_LED_GREEN, 0)
+    GPIO.output(config.device.connection_led.gpio, 0)
     time.sleep(0.25)
-    GPIO.output(GPIO_LED_GREEN, 1)
+    GPIO.output(config.device.connection_led.gpio, 1)
     time.sleep(0.25)
-    GPIO.output(GPIO_LED_GREEN, 0)
+    GPIO.output(config.device.connection_led.gpio, 0)
     exit(0)
 
 
 def startup(args):
-    GPIO.setup(GPIO_LED_GREEN, GPIO.OUT)
-    GPIO.output(GPIO_LED_GREEN, 0)
-
+    global config
     logs_init()
 
     signal.signal(signal.SIGTERM, on_sigterm)
     config = load_config()
 
+    dev_cfg = config.device
+
+    if config.device.power_led.enabled:
+        GPIO.setup(dev_cfg.power_led.gpio, GPIO.OUT)
+        GPIO.output(dev_cfg.power_led.gpio, 1)
+
+    if dev_cfg.connection_led.gpio:
+        GPIO.setup(dev_cfg.connection_led.gpio, GPIO.OUT)
+        GPIO.output(dev_cfg.connection_led.gpio, 0)
+
     retry = 50
     while retry:
-        khost = config["kuzzle"]['host']
-        kport = config["kuzzle"]['port']
+        khost = config.kuzzle.host
+        kport = config.kuzzle.port
         res = KuzzleIOT.server_info(khost, kport)
 
         if res:
@@ -255,7 +264,7 @@ def startup(args):
                 res["serverInfo"]["kuzzle"]["version"])
             )
             init(None, config)
-            GPIO.output(GPIO_LED_GREEN, 1)
+            GPIO.output(dev_cfg.connection_led.gpio, 1)
 
             motion_sensor_install()
             buttons_install()
