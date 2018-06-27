@@ -1,18 +1,21 @@
 #!/usr/bin/python3
 
-import signal
 
+
+import signal
 import RPi.GPIO as GPIO
 import logging
 import coloredlogs
 import sys
+
+sys.path.append("..")
+
 import argparse
 import ruamel.yaml as YAML
 import time
 import threading
 import asyncio
 from neopixeldevice import NeopixelDevice, LED_PIN, LightMode, ws as ws_
-
 from utils import *
 from pn532 import Pn532
 from kuzzle.kuzzle import KuzzleIOT
@@ -22,6 +25,8 @@ yaml = YAML.YAML()
 GPIO_MOTION_SENSOR = 5
 GPIO_BUTTONS = [6, 13, 19, 26]
 GPIO_LED_GREEN = 20
+
+CONFIG_PATH='../config/config.yaml'
 
 log = logging.getLogger('MAIN')
 
@@ -154,7 +159,8 @@ def init(args, config):
 
 
 def logs_init():
-    coloredlogs.install(logger=log, fmt='[%(thread)d] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    coloredlogs.install(logger=log,
+                        fmt='[%(thread)X] - %(asctime)s - %(name)s - %(levelname)s - %(message)s',
                         level=logging.DEBUG,
                         stream=sys.stdout)
 
@@ -188,7 +194,7 @@ def buttons_install():
 
 
 def load_config():
-    with open('config.yaml') as f:
+    with open(CONFIG_PATH) as f:
         content = f.read()
     return yaml.load(content)
 

@@ -122,8 +122,9 @@ class KuzzleIOT(object):
             "action": "create",
             "body": body
         }
-        self.post_query(req)
+        t = self.post_query(req)
         self.LOG.debug("PUBLISH >>>>")
+        return t
 
     async def __subscribe_state_task(self, on_state_changed: callable):
         self.on_state_changed = on_state_changed
@@ -139,7 +140,7 @@ class KuzzleIOT(object):
             }
         }
 
-        self.post_query(subscribe_msg)
+        return self.post_query(subscribe_msg)
 
     async def __connect_task(self, on_connected: callable):
         self.LOG.debug("<Connecting.... url = %s>", self.url)
@@ -173,7 +174,7 @@ class KuzzleIOT(object):
 
     async def __run_loop_task(self):
         while 1:
-            self.LOG.debug("<<Waiting for data from Kuzzle...>>")
+            self.LOG.debug("%s: <<Waiting for data from Kuzzle...>>", self.device_type)
             try:
                 resp = await asyncio.wait_for(self.ws.recv(), timeout=60)
             except wse.ConnectionClosed as e:
@@ -201,7 +202,7 @@ class KuzzleIOT(object):
             except Exception as e:
                 self.LOG.error('__publish_state_task: ws except: %s', str(e))
 
-            self.LOG.debug("<<Received data from Kuzzle...>>")
+            self.LOG.debug("%s: <<Received data from Kuzzle...>>", self.device_type)
             resp = json.loads(resp)
             # print(json.dumps(resp, indent=2, sort_keys=True))
 
@@ -218,23 +219,23 @@ class KuzzleIOT(object):
                 self.on_device_info_resp(resp)
 
     def subscribe_state(self, on_state_changed: callable):
-        self.LOG.debug("<<Adding task to subscribe state>>")
+        self.LOG.debug("%s: <<Adding task to subscribe state>>", self.device_type)
         return self.event_loop.create_task(self.__subscribe_state_task(on_state_changed))
 
     async def __post_query_task(self, query: dict, cb: callable = None):
-        self.LOG.debug("Posting query")
+        self.LOG.debug("%s: Posting query", self.device_type)
         await self.ws.send(json.dumps(query))
         if cb:
             cb()
-        self.LOG.debug("Query posted")
+        self.LOG.debug("%s: Query posted", self.device_type)
 
     def post_query(self, query: dict, cb: callable = None):
-        self.LOG.debug("<<Adding task to post a query>>")
-        return self.event_loop.create_task(self.__post_query_task(query, cb))
+        self.LOG.debug("%s: <<Adding task to post a query>>", self.device_type)
+        return self.event_loop.create_task(self.__post_query_task( query, cb))
 
     def publish_state(self, state, partial=False):
-        self.LOG.debug("<<Adding task to publish state>>")
-        return self.event_loop.create_task(self.__publish_state_task(state, partial))
+        self.LOG.debug("%s: <<Adding task to publish state>>", self.device_type)
+        return asyncio.run_coroutine_threadsafe(self.__publish_state_task(state, partial), self.event_loop)
 
     def connect(self, on_connected: callable):
         print("<Connect>")
