@@ -34,12 +34,16 @@
         <div class="card-body">
           <form action="/setup" method="post">
             <div class="input-group">
-              <label class="input-group-addon" for="kuzzleHost" style="width: 8rem;">Hostname or ip</label>
+              <div class="input-group-prepend">
+              <label class="input-group-text" for="kuzzleHost" style="width: 8rem;">Hostname or ip</label>
+            </div>
               <input type="text" class="form-control" id="kuzzlehost" name="khost" value="${config.kuzzle.host}" placeholder="hostname or ip address " onchange="validate_kuzzle_host()">
             </div>
             </br>
             <div class="input-group ">
-              <label class="input-group-addon " for="kuzzlePort " style="width: 8rem; ">port</label>
+              <div class="input-group-prepend">
+                <label class="input-group-text" for="kuzzlePort" style="width: 8rem; ">port</label>
+              </div>
               <input type="text " class="form-control " id="kuzzleport" name="kport" value="${config.kuzzle.port}" placeholder="kuzzle port" oninput="validate_kuzzle_port()" onblur="input_blur()">
             </div>
         </div>
@@ -52,15 +56,25 @@
           Device settings
         </div>
         <div class="card-body">
+
           <form action="/setup" method="post">
+
             <div class="input-group">
-              <label class="input-group-addon" for="kuzzleHost" style="width: 10rem;">Owner</label>
+              <div class="input-group-prepend">
+                <label class="input-group-text" for="kuzzleHost" style="width: 10rem;">Owner</label>
+              </div>
               <input type="text" class="form-control" id="kuzzlehost" name="owner" value="${config.device.owner}" placeholder="owner of the device">
             </div>
-            </br>
-            <div class="input-group ">
-              <label class="input-group-addon " for="kuzzlePort " style="width: 10rem; ">RGB light led count</label>
-              <input type="text " class="form-control " id="kuzzleport" name="led_counts" value="${config.device.rgb_light.led_count}" placeholder="" oninput="" onblur="">
+          </br>
+            <div class="input-group mb-3">
+              <div class="input-group-prepend">
+                <label  class="input-group-text" style="width: 10rem; ">Type</label>
+              </div>
+              <select class="custom-select" id="device_type" name="device_type" oninput="" onblur="">
+                <option value="iot-board-v1">Kuzzle IoT Board v1 (CES 2018)</option>
+                <option value="iot-board-v2">Kuzzle IoT Board v2 (Light sensor changed MCP channel from 7 to 0)</option>
+                <option value="mini-iot-board">Mini Kuzzle IoT Board</option>
+              </select>
             </div>
         </div>
         <button type="submit" class="btn btn-primary">Apply</button>

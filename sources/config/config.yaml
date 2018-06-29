@@ -4,7 +4,9 @@ kuzzle:
 
 device:
   owner: demo1  # owner of the device, should be the id of a user in kuzzle
-  type: iot-board   # in [ 'iot-board', 'mini-iot-board' ]
+  type: mini-iot-board   # in [ 'iot-board', 'mini-iot-board' ]
+  hw_version: 1.0
+  sw_version: 1.0
 
   rgb_light:
     led_count: 60
@@ -14,7 +16,7 @@ device:
 
   power_led:
     enabled: true
-    gpio: 21
+    gpio: 19
 
   connection_led:
     enabled: true

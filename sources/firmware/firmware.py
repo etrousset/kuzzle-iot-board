@@ -65,7 +65,7 @@ buttons = {
 }
 
 
-def init(args, config):
+def init_hw_components():
     global devices
     global pn532
     global pi
@@ -138,11 +138,15 @@ def init(args, config):
 
     board = KuzzleIOT(
         UID,
-        "iot-board-2018",
+        config.device.type,
         host=kuzzle_cfg.host,
         port=kuzzle_cfg.port,
         owner=config.device.owner,
-        additional_info={"devices": attached_devices}
+        additional_info={
+            "devices": attached_devices,
+            "hw_version": config.device.hw_version,
+            "sw_version": config.device.sw_version
+        }
     )
 
     asyncio.get_event_loop().run_until_complete(
@@ -230,10 +234,12 @@ def on_sigterm(sig_num, stack_frame):
     GPIO.output(config.device.connection_led.gpio, 1)
     time.sleep(0.25)
     GPIO.output(config.device.connection_led.gpio, 0)
+    if config.device.power_led.enabled:
+        GPIO.output(config.device.power_led.gpio, 0)
     exit(0)
 
 
-def startup(args):
+def startup():
     global config
     logs_init()
 
@@ -263,11 +269,14 @@ def startup(args):
                 kport,
                 res["serverInfo"]["kuzzle"]["version"])
             )
-            init(None, config)
+            init_hw_components()
             GPIO.output(dev_cfg.connection_led.gpio, 1)
 
-            motion_sensor_install()
-            buttons_install()
+            if config.device.motion_sensor.enabled:
+                motion_sensor_install()
+
+            if config.device.buttons.enabled:
+                buttons_install()
 
             pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
             pn532_thread.daemon = True
@@ -289,7 +298,6 @@ def startup(args):
 
     try:
         log.info("Entering event loop...")
-        print(asyncio.get_event_loop())
         asyncio.get_event_loop().run_forever()
         log.info("Configuration changed, restarting firmware...")
     except KeyboardInterrupt as e:
@@ -299,4 +307,4 @@ def startup(args):
 
 
 if __name__ == '__main__':
-    startup(None)
+    startup()

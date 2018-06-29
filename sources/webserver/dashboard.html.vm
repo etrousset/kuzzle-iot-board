@@ -84,53 +84,60 @@
 
   <div class="container">
     <div class="row justify-content-around">
-      <div class="col-sm mt-5">
-        <div class="card" style="width: 15rem;">
+      <div class="col-sm-3 mt-5"  style="min-width:250px">
+        <div class="card">
           <div class="card-header">
-            <i class="far fa-address-card fa-lg"></i>
-            Card Reader
+            <i class="far fa-address-card fa-lg"></i> Card Reader
           </div>
           <div class="card-body">
             <div class="card-text" id='rfid_content'></div>
           </div>
         </div>
       </div>
-      <div class="col-sm  mt-5">
-        <div class="card" style="width: 15rem;">
+
+#if ( $config.device.buttons.enabled)
+      <div class="col-sm-2  mt-5" style="min-width:250px">
+        <div class="card">
           <div class="card-header">
-            <i class="fab fa-nintendo-switch fa-lg"></i>
-            Buttons
+            <i class="fab fa-nintendo-switch fa-lg"></i> Buttons
           </div>
           <div class="card-body">
             <div class="card-text" id='buttons_content'>
-              <div class="">
-                <div class="badge badge-secondary" id="button_0">Btn O</div>
-                <div class="badge badge-secondary" id="button_1">Btn 1</div>
-                <div class="badge badge-secondary" id="button_2">Btn 2</div>
-                <div class="badge badge-secondary" id="button_3">Btn 3</div>
+              <div class="row">
+                <div class="col m-1 p-2 badge badge-secondary" id="button_0">Btn O</div>
+                <div class="col m-1 p-2  badge badge-secondary" id="button_1">Btn 1</div>
+              </div>
+              <div class="row">
+                <div class="col m-1 p-2  badge badge-secondary" id="button_2">Btn 2</div>
+                <div class="col m-1 p-2  badge badge-secondary" id="button_3">Btn 3</div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="col-sm  mt-5">
-        <div class="card" style="width: 15rem;">
+  #end
+
+#if($config.device.motion_sensor.enabled)
+      <div class="col-sm-2  mt-5"  style="min-width:250px">
+        <div class="card">
           <div class="card-header">
-            <i class="fas fa-eye fa-lg"></i>
-            Motion sensor
+            <i class="fas fa-eye fa-lg"></i> Motion sensor
           </div>
           <div class="card-body">
             <div class="card-text">
-              <div class="badge badge-secondary" id='motion_content'>Motion</div>
+              <div class="row">
+              <div class="col p-3 badge badge-secondary" id='motion_content'>Motion</div>
+            </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="col-sm  mt-5">
-        <div class="card" style="width: 15rem;">
+#end
+
+      <div class="col-sm-3  mt-5"  style="min-width:250px">
+        <div class="card">
           <div class="card-header">
-            <i class="fas fa-sun fa-lg"></i>
-            Light sensor
+            <i class="fas fa-sun fa-lg"></i> Light sensor
           </div>
           <div class="card-body">
             <div class="card-text" id='light_level'>
@@ -139,11 +146,11 @@
           </div>
         </div>
       </div>
-      <div class="col-sm mt-5">
-        <div class="card" style="width: 15rem;">
+
+      <div class="col-sm-4 mt-5"  style="min-width:390px">
+        <div class="card">
           <div class="card-header">
-            <i class="fas fa-lightbulb fa-lg"></i>
-            RGB Light
+            <i class="fas fa-lightbulb fa-lg"></i> RGB Light
             <label class="switch" style="float: right">
             <input type="checkbox" onchange="rgb_light_switch()" id="rgb_light_switch">
             <span class="slider round"></span>
@@ -152,31 +159,30 @@
           <div class="card-body">
             <div class="card-text" id='rgb_light_content'>
               <div class="row">
-                <div class="rounded-circle led border border-dark" style="background: #f00" id="led_0"></div>
-                <div class="rounded-circle led border border-dark" style="background: #f00" id="led_1"></div>
-                <div class="rounded-circle led border border-dark" style="background: #f00" id="led_2"></div>
-                <div class="rounded-circle led border border-dark" style="background: #f00" id="led_3"></div>
-                <div class="rounded-circle led border border-dark" style="background: #f00" id="led_4"></div>
-                <div class="rounded-circle led border border-dark" style="background: #f00" id="led_5"></div>
-                <div class="rounded-circle led border border-dark" style="background: #f00" id="led_6"></div>
-                <div class="rounded-circle led border border-dark" style="background: #f00" id="led_7"></div>
+                <div class="col m-1 rounded-circle led border border-dark" style="background: #f00" id="led_0"></div>
+                <div class="col m-1 rounded-circle led border border-dark" style="background: #f00" id="led_1"></div>
+                <div class="col m-1 rounded-circle led border border-dark" style="background: #f00" id="led_2"></div>
+                <div class="col m-1 rounded-circle led border border-dark" style="background: #f00" id="led_3"></div>
+                <div class="col m-1 rounded-circle led border border-dark" style="background: #f00" id="led_4"></div>
+                <div class="col m-1 rounded-circle led border border-dark" style="background: #f00" id="led_5"></div>
+                <div class="col m-1 rounded-circle led border border-dark" style="background: #f00" id="led_6"></div>
+                <div class="col m-1 rounded-circle led border border-dark" style="background: #f00" id="led_7"></div>
               </div>
               <hr>
               <div class="d-flex flex-column">
-                  <input type="color" class="btn-primary m-3" id="light-color-picker" value="#70c24a"/>
-                  <button type="button" class="btn btn-primary m-3" onclick="rgb_light_rainbow()">Rainbow</button>
-                  <button type="button" class="btn btn-primary m-3" onclick="rgb_light_cycle()"><i class="fas fa-redo"></i></button>
-                  <!-- <button type="button" class="btn btn-primary m-3" onclick="rgb_light_random()">Random</button> -->
+                <input type="color" class="btn-primary m-3" id="light-color-picker" value="#70c24a" />
+                <button type="button" class="btn btn-primary m-1 p-2" onclick="rgb_light_rainbow()">Rainbow</button>
+                <button type="button" class="btn btn-primary m-1 p-2" onclick="rgb_light_cycle()"><i class="fas fa-redo"></i></button>
+                <!-- <button type="button" class="btn btn-primary m-3" onclick="rgb_light_random()">Random</button> -->
               </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="col-sm mt-5">
-        <div class="card" style="width: 50rem;">
+      <div class="col-sm-12 mt-5">
+        <div class="card">
           <div class="card-header">
-            <i class="fas fa-chart-line fa-lg"></i>
-            Light level history
+            <i class="fas fa-chart-line fa-lg"></i> Light level history
           </div>
           <div class="card-body">
             <div class="card-text" id='rgb_light_content'>
@@ -185,20 +191,21 @@
           </div>
         </div>
       </div>
-    </div>
-    <div>
-      <div class="card mt-5">
-        <div class="card-header">
-          <i class="fa fa-info-circle fa-lg"></i>
-          Device information
-        </div>
-        <div class="card-body text-center">
-          <div class="card-text">
-            ${device.uid}
+      <div class="col-sm mt-5">
+        <div class="card mt-5">
+          <div class="card-header">
+            <i class="fa fa-info-circle fa-lg"></i> Device information
+          </div>
+          <div class="card-body text-center">
+            <div class="card-text">
+              ${device.uid}
+            </div>
           </div>
         </div>
       </div>
+    </div>
   </div>
+</br>
 
   <script src="js/jquery-3.2.1.min.js"></script>
   <script src="js/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
@@ -409,12 +416,14 @@
     }
 
     function light_sensor_search_cb(err, res) {
-      res.getDocuments().forEach( doc => {
+      res.getDocuments().forEach(doc => {
         on_light_sensor_state(doc.content.state, doc.meta.createdAt, false, false)
       })
 
-      if(light_history.length < MAX_HISTORY)
-        device_state_col.scroll(res.options.scrollId, {scroll: '1m'}, light_sensor_search_cb)
+      if (light_history.length < MAX_HISTORY)
+        device_state_col.scroll(res.options.scrollId, {
+          scroll: '1m'
+        }, light_sensor_search_cb)
       else {
         subscribe_to_light_sensor(device)
       }
@@ -426,11 +435,10 @@
           query: {
             bool: {
               must: [{
-                  term: {
-                    device_id: 'light_lvl_' + device.uid,
-                  }
+                term: {
+                  device_id: 'light_lvl_' + device.uid,
                 }
-              ]
+              }]
             }
           },
           sort: [{
@@ -445,8 +453,8 @@
       )
     }
 
-    function on_light_sensor_state(state, date, update_display = false, push=true) {
-      if(push)
+    function on_light_sensor_state(state, date, update_display = false, push = true) {
+      if (push)
         light_history.push([new Date(date), parseFloat(state.level)])
       else
         light_history.splice(1, 0, [new Date(date), parseFloat(state.level)])
@@ -454,13 +462,13 @@
       if (light_history.length > MAX_HISTORY)
         light_history.splice(1, 1)
 
-      if(update_display) {
+      if (update_display) {
         document.getElementById('light_level')
-        .innerHTML = `<h2 class="font-weight-bold">${state.level.toFixed(2)} Lux</h2>`
+          .innerHTML = `<h2 class="font-weight-bold mx-auto">${state.level.toFixed(2)} Lux</h2>`
 
         chart_need_draw = true
         if (chart_ready)
-        drawChart()
+          drawChart()
       }
     }
 
@@ -620,14 +628,14 @@
       rgb_light_publish_state({
         mode: "color-ramp",
         ramp: [
-            [255, 0, 0],
-            [127, 127, 0],
-            [0, 255, 0],
-            [0, 127, 127],
-            [0, 0, 255],
-            [127, 0, 127],
-            [255, 127, 0],
-            [255, 255, 255],
+          [255, 0, 0],
+          [127, 127, 0],
+          [0, 255, 0],
+          [0, 127, 127],
+          [0, 0, 255],
+          [127, 0, 127],
+          [255, 127, 0],
+          [255, 255, 255],
         ]
       })
     }
@@ -636,14 +644,14 @@
       rgb_light_publish_state({
         mode: "cycle",
         ramp: [
-            [255, 0, 0],
-            [127, 127, 0],
-            [0, 255, 0],
-            [0, 127, 127],
-            [0, 0, 255],
-            [127, 0, 127],
-            [255, 127, 0],
-            [255, 255, 255],
+          [255, 0, 0],
+          [127, 127, 0],
+          [0, 255, 0],
+          [0, 127, 127],
+          [0, 0, 255],
+          [127, 0, 127],
+          [255, 127, 0],
+          [255, 255, 255],
         ]
       })
     }
@@ -662,9 +670,7 @@
       console.log('Configuration:', config);
 
       kuzzlehost = config.kuzzle.host
-      kuzzleport = config
-        .kuzzle
-        .port
+      kuzzleport = config.kuzzle.port
       console
         .log("Connecting to kuzzle: ", kuzzlehost, ":", kuzzleport);
 
