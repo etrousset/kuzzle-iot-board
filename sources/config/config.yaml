@@ -2,35 +2,9 @@ kuzzle:
   host: 192.168.1.121
   port: '7512'
 
+firmware:
+  version: 1.0
+
 device:
   owner: demo1  # owner of the device, should be the id of a user in kuzzle
-  type: mini-iot-board   # in [ 'iot-board', 'mini-iot-board' ]
-  hw_version: 1.0
-  sw_version: 1.0
-
-  rgb_light:
-    led_count: 60
-
-  light_sensor:
-    mcp_channel: 0
-
-  power_led:
-    enabled: true
-    gpio: 19
-
-  connection_led:
-    enabled: true
-    gpio: 20
-
-  buttons:
-    enabled: false
-    gpios:
-      - 6
-      - 13
-      - 19
-      - 26
-
-  motion_sensor:
-    enabled: false
-    gpio: 5
-
+  type: mini-iot-board   # in devices/*

@@ -12,7 +12,6 @@
   <script src="js/jquery-3.2.1.min.js"></script>
   <script>
     $(function() {
-      console.log("hello");
       $('#navbar').load("navbar.html", () => document.getElementById('menu_admin').className = "item nav-link active")
     })
   </script>
@@ -37,7 +36,7 @@
               <div class="input-group-prepend">
               <label class="input-group-text" for="kuzzleHost" style="width: 8rem;">Hostname or ip</label>
             </div>
-              <input type="text" class="form-control" id="kuzzlehost" name="khost" value="${config.kuzzle.host}" placeholder="hostname or ip address " onchange="validate_kuzzle_host()">
+              <input type="text" class="form-control" id="kuzzlehost" name="khost" value="${config.kuzzle.host}" placeholder="hostname or ip address " >
             </div>
             </br>
             <div class="input-group ">
@@ -57,13 +56,13 @@
         </div>
         <div class="card-body">
 
-          <form action="/setup" method="post">
+          <form action="/config" method="post">
 
             <div class="input-group">
               <div class="input-group-prepend">
-                <label class="input-group-text" for="kuzzleHost" style="width: 10rem;">Owner</label>
+                <label class="input-group-text" for="owner" style="width: 10rem;">Owner</label>
               </div>
-              <input type="text" class="form-control" id="kuzzlehost" name="owner" value="${config.device.owner}" placeholder="owner of the device">
+              <input type="text" class="form-control" id="owner" name="owner" value="${config.device.owner}" placeholder="owner of the device">
             </div>
           </br>
             <div class="input-group mb-3">
@@ -71,9 +70,11 @@
                 <label  class="input-group-text" style="width: 10rem; ">Type</label>
               </div>
               <select class="custom-select" id="device_type" name="device_type" oninput="" onblur="">
-                <option value="iot-board-v1">Kuzzle IoT Board v1 (CES 2018)</option>
-                <option value="iot-board-v2">Kuzzle IoT Board v2 (Light sensor changed MCP channel from 7 to 0)</option>
-                <option value="mini-iot-board">Mini Kuzzle IoT Board</option>
+#foreach($conf in ${device_configs})
+                <option value="${conf.name}"
+#if(${conf.name} == ${config.device.type})  selected=True #end
+                >${conf.desc}</option>
+#end
               </select>
             </div>
         </div>
@@ -115,7 +116,7 @@
     <div></div>
   </div> -->
     <script src="js/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
-    <script src="js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+    <script src="js/bootstrap.min.js" crossorigin="anonymous"></script>
     <script src="js/bluebird.min.js"></script>
     <script src="js/kuzzle.js"></script>
     <style>
@@ -140,8 +141,6 @@
     <script type="text/javascript">
       function input_blur() {
         $("#kuzzleport").removeClass("is-valid")
-
-
       }
 
       function validate_kuzzle_port() {
