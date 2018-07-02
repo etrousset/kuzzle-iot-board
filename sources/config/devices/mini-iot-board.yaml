@@ -1,0 +1,23 @@
+description: Mini Kuzzle IoT Board
+device:
+  hw_version: 1.0
+
+  rgb_light:
+    led_count: 8
+
+  light_sensor:
+    mcp_channel: 0
+
+  power_led:
+    enabled: true
+    gpio: 19
+
+  connection_led:
+    enabled: true
+    gpio: 20
+
+  buttons:
+    enabled: false
+
+  motion_sensor:
+    enabled: false
