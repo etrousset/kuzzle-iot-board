@@ -8,30 +8,41 @@ import subprocess
 import json
 import dbus
 import glob
+import utils
+import namedtupled
 
 yaml = YAML()
+
+import sys
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+    sys.stdout.flush()
 
 
 class AdminHTTPServer(HTTPServer):
     def __init__(self, server_address, RequestHandlerClass, device_info, config_path):
         super().__init__(server_address, RequestHandlerClass)
-
-        self.config_file = os.path.join(config_path, 'config.yaml')
-        self.device_definitions_path = os.path.join(config_path, 'devices')
-        self.config = self.load_config()
+        self.config_path = config_path
         self.device_info = device_info
+        self.load_configs()
 
-    def get_device_configs(self):
+        self.device_definitions_path = os.path.join(config_path, 'devices')
+
+    def get_device_configs(self) -> list:
         configs = []
 
         files = glob.glob(self.device_definitions_path + "/*")
 
+        print(files)
+
         for file in files:
             with open(file) as f:
                 dev_desc_str = f.read()
-            desc =  yaml.load(dev_desc_str)
+            hw_cfg = yaml.load(dev_desc_str)
 
-            configs.append({"name": os.path.basename(file), "desc": desc["description"]})
+            name = os.path.splitext(os.path.basename(file))[0]
+            configs.append({"name": name, "desc": hw_cfg["description"]})
         return configs
 
     def start_admin_server(self):
@@ -42,38 +53,39 @@ class AdminHTTPServer(HTTPServer):
     def shutdown_admin_server(self):
         self.shutdown()
 
-    def load_config(self):
-        with open(self.config_file) as f:
-            config_str = f.read()
-        return yaml.load(config_str)
-
     def restart_firmware(self):
         sysbus = dbus.SystemBus()
         systemd1 = sysbus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
         manager = dbus.Interface(systemd1, 'org.freedesktop.systemd1.Manager')
         job = manager.RestartUnit('kuzzle-sensor-firmware.service', 'fail')
 
+
+    def load_configs(self):
+        self.fw_config, self.hw_config = utils.load_configs(self.config_path)
+        self.device_info["hw_config"] = self.hw_config
+
+    def save_fw_config(self):
+        utils.save_fw_config(self.config_path, self.fw_config)
+
     def apply_kuzzle_config(self, args):
         if 'kport' in args.keys():
-            self.config['kuzzle']['port'] = args['kport']
+            eprint(self.fw_config)
+            self.fw_config['kuzzle']["port"] = args['kport']
         if 'khost' in args.keys():
-            self.config['kuzzle']['host'] = args['khost']
-
-        with open(self.config_file, mode='w') as f:
-            yaml.dump(self.config, f)
-
+            print(self.fw_config)
+            self.fw_config["kuzzle"]["host"] = args['khost']
+        self.save_fw_config()
         self.restart_firmware()
 
     def apply_device_config(self, args):
-        if 'device_type' in args.keys():
-            self.config['device']['type'] = args['device_type']
+        if 'hw_config' in args.keys():
+            self.fw_config['device']['hw_config'] = args['hw_config']
 
         if 'owner' in args.keys():
-            self.config['device']['owner'] = args['owner']
+            self.fw_config['device']['owner'] = args['owner']
 
-        with open(self.config_file, mode='w') as f:
-            yaml.dump(self.config, f)
-
+        self.save_fw_config()
+        self.load_configs()
         self.restart_firmware()
 
 
@@ -92,6 +104,7 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
             self.end_headers()
 
         if self.path == '/config':
+            eprint("/config <====================")
             content_length = int(self.headers['Content-Length'])
             c = self.rfile.read(content_length)
             args = uparse.parse_qsl(c)
@@ -110,12 +123,14 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-type", "text/html")
 
             device_configs = self.server.get_device_configs()
-            print(device_configs)
             admin_template = self.load_admin_template()
             body = admin_template.merge(
-                {'config': self.server.config, 'device': {'uid': 'an_uid'}, 'device_configs': device_configs})
-
-            print(body)
+                {
+                    'fw_config': namedtupled.reduce(self.server.fw_config),
+                    'device': namedtupled.reduce(self.server.device_info),
+                    'device_configs': device_configs
+                }
+            )
 
             self.send_header("Content-length", len(body))
             self.end_headers()
@@ -131,8 +146,15 @@ class AdminHTTPRequestHandler(SimpleHTTPRequestHandler):
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-type", "text/html")
 
+            print(namedtupled.reduce(self.server.fw_config))
+            print(namedtupled.reduce(self.server.device_info))
             dashboard_template = self.load_dashboard_template()
-            body = dashboard_template.merge({'config': json.dumps(self.sever.config), 'device': self.server.device_info})
+            body = dashboard_template.merge(
+                {
+                    'fw_config': namedtupled.reduce(self.server.fw_config),
+                    'device': namedtupled.reduce(self.server.device_info),
+                }
+            )
 
             self.send_header("Content-length", len(body))
             self.end_headers()

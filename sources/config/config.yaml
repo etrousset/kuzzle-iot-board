@@ -7,4 +7,4 @@ firmware:
 
 device:
   owner: demo1  # owner of the device, should be the id of a user in kuzzle
-  type: mini-iot-board   # in devices/*
+  hw_config: mini-iot-board   # in devices/*

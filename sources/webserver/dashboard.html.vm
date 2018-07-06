@@ -90,12 +90,12 @@
             <i class="far fa-address-card fa-lg"></i> Card Reader
           </div>
           <div class="card-body">
-            <div class="card-text" id='rfid_content'></div>
+            <div class="row card-text" id='rfid_content'></div>
           </div>
         </div>
       </div>
 
-#if ( $config.device.buttons.enabled)
+#if ( ${device.hw_config.buttons.enabled})
       <div class="col-sm-2  mt-5" style="min-width:250px">
         <div class="card">
           <div class="card-header">
@@ -117,7 +117,7 @@
       </div>
   #end
 
-#if($config.device.motion_sensor.enabled)
+#if(${device.hw_config.motion_sensor.enabled})
       <div class="col-sm-2  mt-5"  style="min-width:250px">
         <div class="card">
           <div class="card-header">
@@ -198,7 +198,7 @@
           </div>
           <div class="card-body text-center">
             <div class="card-text">
-              ${device.uid}
+              type: ${device.hw_config.type} - hw: ${device.hw_config.hw_version} - UID: ${device.uid}
             </div>
           </div>
         </div>
@@ -320,12 +320,13 @@
             } else {
               document
                 .getElementById('rfid_content')
-                .innerHTML += `<div class="badge badge-primary" id="rfid_content_${state.card_id}">${state.card_id}</div></br>`
+                .innerHTML += `<div class= "col m-1 p-1"><div class="badge badge-primary" id="rfid_content_${state.card_id}"><H4>${state.card_id}</H4></div></div>`
             }
           } else {
             console.log('Card left sensor field: ', state.card_id)
             card_div = document.getElementById('rfid_content_' + state.card_id)
-            card_div.className = "badge badge-secondary"
+            if(card_div)
+              card_div.className = "badge badge-secondary"
           }
         })
         .onDone((a) => {
@@ -663,7 +664,7 @@
     function kuzzle_init() {
       console.log('kuzzle_init');
 
-      config = ${config}
+      config = ${fw_config}
       device = ${device}
 
       console.log('Device info:', device);

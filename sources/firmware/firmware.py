@@ -21,21 +21,12 @@ from kuzzle.kuzzle import KuzzleIOT
 import namedtupled
 
 yaml = YAML.YAML()
-config = None
-
-# GPIO_MOTION_SENSOR = 5
-# GPIO_BUTTONS = [6, 13, 19, 26]
-
-CONFIG_PATH = '../config/config.yaml'
-
+CONFIG_PATH = '../config'
 log = logging.getLogger('MAIN')
 
 UID = None
-
 devices = {}
-
 pn532 = None
-
 neo = None
 
 # @formatter: off
@@ -65,28 +56,30 @@ buttons = {
 }
 
 
-def init_hw_components():
+def init_hw_components(fw_config, hw_config):
     global devices
     global pn532
     global pi
     global UID
     global neo
 
-    kuzzle_cfg = config.kuzzle
-    dev_conn = ()
+    kuzzle_cfg = fw_config.kuzzle
+
+    dev_conn = ()  # devices to connect
 
     UID = rpi_get_serial()
     log.info('Getting device base UID: %s', UID)
     log.info('Connecting to Kuzzle on {}:{}'.format(kuzzle_cfg.host, kuzzle_cfg.port))
 
-    neo = NeopixelDevice(config.device.rgb_light.led_count, LED_PIN, strip_type=ws_.WS2811_STRIP_GRB)
+    log.debug("Neopixel: led_count = {}".format(hw_config.rgb_light.led_count))
+    neo = NeopixelDevice(hw_config.rgb_light.led_count, LED_PIN, strip_type=ws_.WS2811_STRIP_GRB)
     devices["kuzzle_neo"] = KuzzleIOT(
         'rgb_light_{}'.format(UID),
         'neopixel-linear',
         host=kuzzle_cfg.host,
         port=kuzzle_cfg.port,
-        owner=config.device.owner,
-        additional_info={'led_count': config.device.rgb_light.led_count}
+        owner=fw_config.device.owner,
+        additional_info={'led_count': hw_config.rgb_light.led_count}
     )
     dev_conn += (devices["kuzzle_neo"].connect(neo.on_kuzzle_connected),)
 
@@ -95,27 +88,27 @@ def init_hw_components():
         "RFID_reader",
         host=kuzzle_cfg.host,
         port=kuzzle_cfg.port,
-        owner=config.device.owner
+        owner=fw_config.device.owner
     )
     dev_conn += (devices["kuzzle_rfid"].connect(None),)
 
-    if config.device.motion_sensor.enabled:
+    if hw_config.motion_sensor.enabled:
         devices["kuzzle_motion"] = KuzzleIOT(
             "motion_" + UID,
             "motion-sensor",
             host=kuzzle_cfg.host,
             port=kuzzle_cfg.port,
-            owner=config.device.owner
+            owner=fw_config.device.owner
         )
         dev_conn += (devices["kuzzle_motion"].connect(None),)
 
-    if config.device.buttons.enabled:
+    if hw_config.buttons.enabled:
         devices["kuzzle_buttons"] = KuzzleIOT(
             "buttons_{}".format(UID),
             "button",
             host=kuzzle_cfg.host,
             port=kuzzle_cfg.port,
-            owner=config.device.owner
+            owner=fw_config.device.owner
         )
         dev_conn += (devices["kuzzle_buttons"].connect(None),)
 
@@ -124,7 +117,7 @@ def init_hw_components():
         "light_sensor",
         host=kuzzle_cfg.host,
         port=kuzzle_cfg.port,
-        owner=config.device.owner
+        owner=fw_config.device.owner
     )
     dev_conn += (devices["kuzzle_light"].connect(None),)
 
@@ -138,14 +131,14 @@ def init_hw_components():
 
     board = KuzzleIOT(
         UID,
-        config.device.type,
+        hw_config.type,
         host=kuzzle_cfg.host,
         port=kuzzle_cfg.port,
-        owner=config.device.owner,
+        owner=fw_config.device.owner,
         additional_info={
             "devices": attached_devices,
-            "hw_version": config.device.hw_version,
-            "sw_version": config.device.sw_version
+            "hw_version": hw_config.hw_version,
+            "sw_version": fw_config.firmware.version
         }
     )
 
@@ -169,51 +162,57 @@ def logs_init():
                         stream=sys.stdout)
 
 
-def on_gpio_changed(gpio, level):
-    if gpio in config.device.buttons.gpios:
-        buttons['button_{}'.format(config.device.buttons.gpios.index(gpio))] = 'PRESSED' if not level else 'RELEASED'
-        log.debug('Buttons state: %s', buttons)
-        devices["kuzzle_buttons"].publish_state(buttons)
-    elif gpio == config.device.motion_sensor.gpio:
-        log.debug('Motion: %s', 'True' if level else 'False')
-        devices["kuzzle_motion"].publish_state({'motion': True if level else False})
-    else:
-        log.warning('Unexpected GPIO: %d', gpio)
+class GpioHandler:
+    def __init__(self, hw_config):
+        self.hw_config = hw_config
+
+    def on_gpio_changed(self, gpio, level):
+        if gpio in self.hw_config.buttons.gpios:
+            buttons[
+                'button_{}'.format(self.hw_config.buttons.gpios.index(gpio))] = 'PRESSED' if not level else 'RELEASED'
+            log.debug('Buttons state: %s', buttons)
+            devices["kuzzle_buttons"].publish_state(buttons)
+        elif gpio == self.hw_config.motion_sensor.gpio:
+            log.debug('Motion: %s', 'True' if level else 'False')
+            devices["kuzzle_motion"].publish_state({'motion': True if level else False})
+        else:
+            log.warning('Unexpected GPIO: %d', gpio)
+
+    def on_gpio_changed_up(self, channel):
+        time.sleep(0.03)  # 30 ms sleep to make sure the GPIO state is stabilized before reading it
+        self.on_gpio_changed(channel, GPIO.input(channel))
+
+    def motion_sensor_install(self):
+        GPIO.setup(self.hw_config.motion_sensor.gpio, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(self.hw_config.motion_sensor.gpio, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(self.hw_config.motion_sensor.gpio, GPIO.BOTH, callback=self.on_gpio_changed_up)
+
+    def buttons_install(self):
+        GPIO.setup(self.hw_config.buttons.gpios, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        for gpio in self.hw_config.buttons.gpios:
+            GPIO.add_event_detect(gpio, GPIO.BOTH, callback=self.on_gpio_changed_up, bouncetime=50)
 
 
-def on_gpio_changed_up(channel):
-    time.sleep(0.03)  # 30 ms sleep to make sure the GPIO state is stabilized before reading it
-    on_gpio_changed(channel, GPIO.input(channel))
+def cleanup(hw_config):
+    if hw_config.connection_led.enabled:
+        GPIO.output(hw_config.connection_led.gpio, 0)
 
+    if hw_config.power_led.enabled:
+        GPIO.output(hw_config.power_led.gpio, 0)
 
-def motion_sensor_install():
-    GPIO.setup(config.device.motion_sensor.gpio, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(config.device.motion_sensor.gpio, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.add_event_detect(config.device.motion_sensor.gpio, GPIO.BOTH, callback=on_gpio_changed_up)
+    global neo
+    neo.state = {
+        'on': False,
+    }
 
-
-def buttons_install():
-    GPIO.setup(config.device.buttons.gpios, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    for gpio in config.device.buttons.gpios:
-        GPIO.add_event_detect(gpio, GPIO.BOTH, callback=on_gpio_changed_up, bouncetime=50)
-
-
-def load_config():
-    with open(CONFIG_PATH) as f:
-        content = f.read()
-    return namedtupled.map(yaml.load(content))
-
-
-def cleanup():
-    GPIO.output(config.device.connection_led.gpio, 0)
     GPIO.cleanup()
 
 
-def start_sensing_light():
-    log.info("Starting light level sensing thread")
+def start_sensing_light(hw_config):
+    log.info("Starting light level sensing thread: reading in MCP channel {}".format(hw_config.light_sensor.mcp_channel))
     import tept5700
 
-    tept = tept5700.Tept5700(5.2, 10000, mcp_channel=config.device.light_sensor.mcp_channel)
+    tept = tept5700.Tept5700(5.2, 10000, mcp_channel=hw_config.light_sensor.mcp_channel)
     try:
         while 1:
             voltage, lux = tept.read_lux()
@@ -223,43 +222,53 @@ def start_sensing_light():
         pass
 
 
-def on_sigterm(sig_num, stack_frame):
-    print("I'm dying!!!")
-    GPIO.output(config.device.connection_led.gpio, 0)
-    time.sleep(0.25)
-    GPIO.output(config.device.connection_led.gpio, 1)
-    time.sleep(0.25)
-    GPIO.output(config.device.connection_led.gpio, 0)
-    time.sleep(0.25)
-    GPIO.output(config.device.connection_led.gpio, 1)
-    time.sleep(0.25)
-    GPIO.output(config.device.connection_led.gpio, 0)
-    if config.device.power_led.enabled:
-        GPIO.output(config.device.power_led.gpio, 0)
-    exit(0)
+class SignalHandler:
+    def __init__(self, hw_config):
+        self.hw_config = hw_config
+
+    def on_sigterm(self, sig_num, stack_frame):
+        log.debug("I'm dying!!!")
+        GPIO.output(self.hw_config.connection_led.gpio, 0)
+        time.sleep(0.5)
+        GPIO.output(self.hw_config.connection_led.gpio, 1)
+        time.sleep(0.5)
+        GPIO.output(self.hw_config.connection_led.gpio, 0)
+        time.sleep(0.5)
+        GPIO.output(self.hw_config.connection_led.gpio, 1)
+        time.sleep(0.5)
+        GPIO.output(self.hw_config.connection_led.gpio, 0)
+
+        log.info("service stopped")
+        cleanup(hw_config)
+        exit(0)
 
 
 def startup():
-    global config
     logs_init()
 
-    signal.signal(signal.SIGTERM, on_sigterm)
-    config = load_config()
+    fw_config, hw_config = load_configs(CONFIG_PATH)
+    fw_config = namedtupled.map(fw_config)
+    hw_config = namedtupled.map(hw_config)
+    kuzzle_config = fw_config.kuzzle
 
-    dev_cfg = config.device
+    sh = SignalHandler(hw_config)
+    signal.signal(signal.SIGTERM, sh.on_sigterm)
 
-    if config.device.power_led.enabled:
-        GPIO.setup(dev_cfg.power_led.gpio, GPIO.OUT)
-        GPIO.output(dev_cfg.power_led.gpio, 1)
+    gpio_handler = GpioHandler(hw_config)
 
-    if dev_cfg.connection_led.gpio:
-        GPIO.setup(dev_cfg.connection_led.gpio, GPIO.OUT)
-        GPIO.output(dev_cfg.connection_led.gpio, 0)
+
+    if hw_config.power_led.enabled:
+        GPIO.setup(hw_config.power_led.gpio, GPIO.OUT)
+        GPIO.output(hw_config.power_led.gpio, 1)
+
+    if hw_config.connection_led.gpio:
+        GPIO.setup(hw_config.connection_led.gpio, GPIO.OUT)
+        GPIO.output(hw_config.connection_led.gpio, 0)
 
     retry = 50
     while retry:
-        khost = config.kuzzle.host
-        kport = config.kuzzle.port
+        khost = kuzzle_config.host
+        kport = kuzzle_config.port
         res = KuzzleIOT.server_info(khost, kport)
 
         if res:
@@ -269,20 +278,21 @@ def startup():
                 kport,
                 res["serverInfo"]["kuzzle"]["version"])
             )
-            init_hw_components()
-            GPIO.output(dev_cfg.connection_led.gpio, 1)
+            init_hw_components(fw_config, hw_config)
+            GPIO.output(hw_config.connection_led.gpio, 1)
 
-            if config.device.motion_sensor.enabled:
-                motion_sensor_install()
+            if hw_config.motion_sensor.enabled:
+                gpio_handler.motion_sensor_install()
 
-            if config.device.buttons.enabled:
-                buttons_install()
+            if hw_config.buttons.enabled:
+                gpio_handler.buttons_install()
 
             pn532_thread = threading.Thread(target=pn532.start_polling, name="pn532_polling")
             pn532_thread.daemon = True
             pn532_thread.start()
 
-            light_sensor_thread = threading.Thread(target=start_sensing_light, name="light_sensor")
+            light_sensor_thread = threading.Thread(target=start_sensing_light, args=(hw_config,),
+                                                   name="light_sensor")
             light_sensor_thread.daemon = True
             light_sensor_thread.start()
         else:
@@ -303,7 +313,7 @@ def startup():
     except KeyboardInterrupt as e:
         pass
     finally:
-        cleanup()
+        cleanup(hw_config)
 
 
 if __name__ == '__main__':

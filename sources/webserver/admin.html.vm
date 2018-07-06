@@ -36,14 +36,14 @@
               <div class="input-group-prepend">
               <label class="input-group-text" for="kuzzleHost" style="width: 8rem;">Hostname or ip</label>
             </div>
-              <input type="text" class="form-control" id="kuzzlehost" name="khost" value="${config.kuzzle.host}" placeholder="hostname or ip address " >
+              <input type="text" class="form-control" id="kuzzlehost" name="khost" value="${fw_config.kuzzle.host}" placeholder="hostname or ip address " >
             </div>
             </br>
             <div class="input-group ">
               <div class="input-group-prepend">
                 <label class="input-group-text" for="kuzzlePort" style="width: 8rem; ">port</label>
               </div>
-              <input type="text " class="form-control " id="kuzzleport" name="kport" value="${config.kuzzle.port}" placeholder="kuzzle port" oninput="validate_kuzzle_port()" onblur="input_blur()">
+              <input type="text " class="form-control " id="kuzzleport" name="kport" value="${fw_config.kuzzle.port}" placeholder="kuzzle port" oninput="validate_kuzzle_port()" onblur="input_blur()">
             </div>
         </div>
         <button type="submit" class="btn btn-primary">Apply</button>
@@ -62,17 +62,17 @@
               <div class="input-group-prepend">
                 <label class="input-group-text" for="owner" style="width: 10rem;">Owner</label>
               </div>
-              <input type="text" class="form-control" id="owner" name="owner" value="${config.device.owner}" placeholder="owner of the device">
+              <input type="text" class="form-control" id="owner" name="owner" value="${fw_config.device.owner}" placeholder="owner of the device">
             </div>
           </br>
             <div class="input-group mb-3">
               <div class="input-group-prepend">
                 <label  class="input-group-text" style="width: 10rem; ">Type</label>
               </div>
-              <select class="custom-select" id="device_type" name="device_type" oninput="" onblur="">
+              <select class="custom-select" id="hw_config" name="hw_config" oninput="" onblur="">
 #foreach($conf in ${device_configs})
                 <option value="${conf.name}"
-#if(${conf.name} == ${config.device.type})  selected=True #end
+#if(${conf.name} == ${fw_config.device.hw_config})  selected=True #end
                 >${conf.desc}</option>
 #end
               </select>
