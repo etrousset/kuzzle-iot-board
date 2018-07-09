@@ -198,7 +198,7 @@
           </div>
           <div class="card-body text-center">
             <div class="card-text">
-              type: ${device.hw_config.type} - hw: ${device.hw_config.hw_version} - UID: ${device.uid}
+              <b>type:</b> ${device.hw_config.type} - <b>hw:</b> ${device.hw_config.hw_version} - <b>fw:</b> ${fw_config.firmware.version} - <b>UID:</b> ${device.uid}
             </div>
           </div>
         </div>
