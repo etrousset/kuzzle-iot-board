@@ -1,0 +1,50 @@
+#!/usr/bin/python3
+
+import subprocess
+
+"""
+Inject current firmware version and git hash in build/config files:
+- kuzzle-iot-board/DEBIAN/control
+- kuzzle-iot-board/opt/kuzzle/config.yaml
+"""
+
+
+def inject_version_in_debian_control(version: str) -> None:
+    with open("../sources/DEBIAN/control", "r") as f:
+        s = f.read()
+    s = s.replace("{{VERSION}}", version)
+    with open("../kuzzle-iot-board/DEBIAN/control", "w") as f:
+        f.write(s)
+
+
+def inject_version_in_config(version: str) -> None:
+    """
+    Inject version un kuzzle/config/config.yaml
+    :param version:
+    :return:
+    """
+    with open("../sources/kuzzle/config/config.yaml", "r") as f:
+        s = f.read()
+    s = s.replace("{{VERSION}}", version)
+    with open("../kuzzle-iot-board/opt/kuzzle/config/config.yaml", "w") as f:
+        f.write(s)
+
+
+def load_version(version_file: str) -> str:
+    with open(version_file) as f:
+        return f.read()
+
+
+def get_git_hash() -> str:
+    cp = subprocess.run(["git", "rev-parse", "--short", "HEAD"], stdout=subprocess.PIPE)
+    return cp.stdout.decode().strip()
+
+
+base_version = load_version("../VERSION")
+git_hash = get_git_hash()
+fw_version = "{}-{}".format(base_version, git_hash)
+print("Firmware version is: {}".format(fw_version))
+print("Copying DEBIAN/control file with version...")
+inject_version_in_debian_control(fw_version)
+print("Copying kuzzle/config/config.yaml file with version...")
+inject_version_in_config(fw_version)

@@ -1,0 +1,9 @@
+#!/bin/bash
+echo "Copying firmware code to package tree: opt/kuzzle"
+mkdir -p ../kuzzle-iot-board/opt/kuzzle
+cp ../sources/kuzzle/* ../kuzzle-iot-board/opt/kuzzle/ -r
+
+
+./inject-version
+dpkg-deb --build ../kuzzle-iot-board
+
