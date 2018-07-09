@@ -1,6 +1,6 @@
 description: Mini Kuzzle IoT Board
-type: mini-iot-board
-hw_version: 1.0
+type: iot-board-2018
+hw_version: 2.0
 
 rgb_light:
   led_count: 16

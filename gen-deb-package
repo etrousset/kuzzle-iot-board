@@ -1,5 +1,0 @@
-#!/bin/bash
-mkdir -p kuzzle-iot-board/opt/kuzzle
-cp sources/* kuzzle-iot-board/opt/kuzzle/ -r
-dpkg-deb --build kuzzle-iot-board
-

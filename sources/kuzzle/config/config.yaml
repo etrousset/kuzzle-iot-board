@@ -3,7 +3,7 @@ kuzzle:
   port: '7512'
 
 firmware:
-  version: 1.0
+  version: {{VERSION}}
 
 device:
   owner: demo1  # owner of the device, should be the id of a user in kuzzle
