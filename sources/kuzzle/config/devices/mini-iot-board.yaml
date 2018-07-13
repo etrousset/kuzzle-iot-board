@@ -9,7 +9,7 @@ light_sensor:
   mcp_channel: 0
 
 power_led:
-  enabled: 0
+  enabled: 1
   gpio: 19
 
 connection_led:

@@ -239,7 +239,7 @@ class SignalHandler:
         GPIO.output(self.hw_config.connection_led.gpio, 0)
 
         log.info("service stopped")
-        cleanup(hw_config)
+        cleanup(self.hw_config)
         exit(0)
 
 
