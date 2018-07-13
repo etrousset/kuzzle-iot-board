@@ -1,6 +1,6 @@
-# RPi Multi-Sensor
+# Kuzzle IoT demonstration board
 
-The multi sensor device based on a raspberry pi to demonstrate Kuzzle usage as IoT backend
+The Kuzzle IoT board is based on a raspberry pi to demonstrate Kuzzle as IoT backend
 
 See http://kuzzle.io for more info about Kuzzle
 
@@ -74,7 +74,7 @@ State published in Kuzzle:
 }
 ```
 
-## Configure
+## Configuration
 
 There is a webserver that allow configuring the multi-sensor, for now allow configure the host and port where to find Kuzzle.
 The webserver is accessible through [http://kuzzle-sensor.local](http://kuzzle-sensor.local/)

@@ -1,0 +1,28 @@
+description: Kuzzle IoT Board v2 (Light sensor changed MCP channel from 7 to 0)
+type: iot-board-2018
+hw_version: 1.1
+
+rgb_light:
+  led_count: 60
+
+light_sensor:
+  mcp_channel: 0
+
+power_led:
+  enabled: 0
+
+connection_led:
+  enabled: 1
+  gpio: 20
+
+buttons:
+  enabled: 1
+  gpios:
+    - 6
+    - 13
+    - 19
+    - 26
+
+motion_sensor:
+  enabled: 1
+  gpio: 5

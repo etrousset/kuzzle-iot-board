@@ -1,0 +1,28 @@
+description: Kuzzle IoT Board v1 (CES 2018)
+type: iot-board-2018
+hw_version: 1.0
+
+rgb_light:
+  led_count: 60
+
+light_sensor:
+  mcp_channel: 7
+
+power_led:
+  enabled: 0
+
+connection_led:
+  enabled: 1
+  gpio: 20
+
+buttons:
+  enabled: 1
+  gpios:
+    - 6
+    - 13
+    - 19
+    - 26
+
+motion_sensor:
+  enabled: 1
+  gpio: 5

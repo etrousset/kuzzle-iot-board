@@ -1,5 +1,3 @@
-*.iml
-.idea
 # Created by https://www.gitignore.io/api/python
 
 ### Python ###
@@ -13,7 +11,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+#build/
 develop-eggs/
 dist/
 downloads/
